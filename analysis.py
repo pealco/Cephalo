@@ -44,19 +44,24 @@ def find_maxdiff(epochs):
             diff = abs(ampb - ampa)
             if diff > maxdiff[epoch]: 
                 maxdiff[epoch] = diff
-            
+           
     return maxdiff
     
 def reject_epochs(epochs):
     print "Rejecting epochs ..."
     maxdiffs = find_maxdiff(epochs)
-    badguys =  arange(len(maxdiffs))[maxdiffs > 200]
-    good_epochs = epochs[:, :, :, maxdiffs <= 200].copy()
+    
+    maxdiffs_mean = mean(maxdiffs)
+    maxdiffs_std  = std(maxdiffs)
+    
+    #badguys =  arange(len(maxdiffs))[maxdiffs > maxdiffs_mean + 2*maxdiffs_std]
+    good_epochs = epochs[:, :, :, maxdiffs <= maxdiffs_mean + 2*maxdiffs_std].copy()
     #print shape(epochs)
     #print badguys
     #for guy in badguys:
     #    figure()
-    #    plot(rms(epochs[0, :, :, guy], 1))
+    #    #plot(rms(epochs[0, :, :, guy], 1))
+    #    specgram(rms(epochs[0, :, :, guy], 1), 64, noverlap=32)
     #show()
     return good_epochs
 
