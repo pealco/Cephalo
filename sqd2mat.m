@@ -5,9 +5,7 @@ function [brain, refs] = sqd2mat(file)
 % Matlab data channels: 1:157
 % Matlab ref  channels: 158:160
 
-brain_chans   = [0:10];
-ref_chans     = [157 158 159];
-data_chans    = [brain_chans, ref_chans];
+data_chans    = [0:10];
 trigger_chans = [162, 163, 164, 165, 167, 168, 169, 170];
 expected_triggers = 200;
 
