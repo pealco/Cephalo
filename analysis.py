@@ -4,6 +4,14 @@ from pylab import *
 import psyco
 psyco.full()
 
+def load_data(thefile):
+    print "Loading data ..."
+    x = mio.loadmat(thefile)
+    data     = x["data"]
+    triggers = x["triggers"]
+    
+    return data, triggers
+
 def epoch(data, triggers, channels, conditions):
     """Pulls out the epochs from the long data file."""
     
@@ -17,27 +25,28 @@ def epoch(data, triggers, channels, conditions):
         print "Epoching channel %s ..." % channel
         for condition in conditions: 
             for t in range(shape(triggers[:, condition])[0]):
-                epoch_start = triggers[t,condition] - stimulus_pre;
-                epoch_end   = triggers[t,condition] + stimulus_post;
-                the_epoch = data[channel][range(epoch_start, epoch_end + 1)];
-                epochs[condition, :, channel_index, t] = the_epoch;
+                epoch_start = triggers[t, condition] - stimulus_pre
+                epoch_end   = triggers[t, condition] + stimulus_post
+                the_epoch = data[channel][range(epoch_start, epoch_end + 1)]
+                epochs[condition, :, channel_index, t] = the_epoch
     return epochs
 
 
 def baseline(epochs):
+    print "Baselining ..."
     for condition in arange(shape(epochs)[0]):
         for channel in arange(shape(epochs)[2]):
             epochs[condition, :, channel, :] = epochs[condition, :, channel, :] - mean(epochs[condition, 0:100, channel, :], 0)
     return epochs
                 
 def rms(data, axis=0): 
-    return transpose(sqrt(sum((data ** 2), axis)/shape(data)[axis]))
+    return sqrt(mean(data ** 2, axis))
 
 def find_maxdiff(epochs):
-    maxdiff = zeros(shape(epochs)[3])
-    bigdiff = zeros(shape(epochs)[3])
-    for epoch in arange(shape(epochs)[3]):
-        signal = rms(epochs[0, :, :, epoch], 1)
+    maxdiff = zeros(shape(epochs)[2])
+    bigdiff = zeros(shape(epochs)[2])
+    for epoch in arange(shape(epochs)[2]):
+        signal = rms(epochs[:, :, epoch], 1)
         for t in arange(50, shape(signal)[0] - 50):
             ampa = mean(signal[t-50:t])
             ampb = mean(signal[t:t+50])
@@ -46,55 +55,115 @@ def find_maxdiff(epochs):
                 maxdiff[epoch] = diff
            
     return maxdiff
+
+def reject_epochs(data, method="std"):
+    """
+    Takes a set of epochs from one condition for all channels.
+    samples x channels x epochs
     
-def reject_epochs(epochs):
-    print "Rejecting epochs ..."
-    maxdiffs = find_maxdiff(epochs)
+    Returns a list of good epochs
+    """
     
+    if method == "std":
+        print "Rejecting epochs using standard deviation method ..."
+        return reject_by_std_method(data)
+    else:
+        print "Rejecting epochs using difference method ..."
+        return reject_by_diff_method(data)
+
+def reject_by_std_method(data):
+    samples, channels, epochs = shape(data)
+    
+    rejected_epochs = []
+    accepted_epochs = []
+    
+    for epoch in xrange(epochs):
+        signal = rms(data[:, :, epoch], 1) # signal: samples
+        deviations = zeros((samples - 200))
+        mean_signal = mean(signal)
+        std_signal  = std(signal)
+        for t in arange(shape(deviations)[0]):
+            deviations[t] = std(signal[t:t+200])
+        
+        deviations = abs(deviations - std_signal)
+        if max(deviations) >= 250:
+            rejected_epochs += [epoch]
+        
+        if max(deviations) < 250:
+            accepted_epochs += [epoch]
+            
+    print  rejected_epochs
+    return accepted_epochs
+    
+    
+def reject_by_diff_method(data):
+    samples, channels, epochs = shape(data)
+    
+    maxdiffs = find_maxdiff(data)
     maxdiffs_mean = mean(maxdiffs)
     maxdiffs_std  = std(maxdiffs)
     
-    #badguys =  arange(len(maxdiffs))[maxdiffs > maxdiffs_mean + 2*maxdiffs_std]
-    good_epochs = epochs[:, :, :, maxdiffs <= maxdiffs_mean + 2*maxdiffs_std].copy()
-    #print shape(epochs)
-    #print badguys
-    #for guy in badguys:
-    #    figure()
-    #    #plot(rms(epochs[0, :, :, guy], 1))
-    #    specgram(rms(epochs[0, :, :, guy], 1), 64, noverlap=32)
-    #show()
-    return good_epochs
-
-def load_data(thefile):
-    print "Loading data ..."
-    x = mio.loadmat(thefile)
-    data     = x["data"]
-    triggers = x["triggers"]
+    rejected_epochs = arange(len(maxdiffs))[maxdiffs > maxdiffs_mean + 2*maxdiffs_std]
+    accepted_epochs = arange(len(maxdiffs))[maxdiffs <= maxdiffs_mean + 2*maxdiffs_std]
     
-    return data, triggers
+    print rejected_epochs
+    return accepted_epochs
+    
 
+def plot_rms_mean_conditions(mean_epochs):
+    for condition in range(8):
+        figure()
+        plot(rms(mean_epochs, 2)[:, condition])
 
-data, triggers = load_data("R1158.mat")
-front_sensors = [0, 41, 42, 83, 84, 107, 106, 105, 104, 103, 102, 101, 100, 62, 61, 24, 23]
+def difference_wave(standard, deviant): 
+    return deviant - standard
 
-epochs = epoch(data, triggers, front_sensors, range(8))
-epochs = baseline(epochs.copy())
-epochs2 = reject_epochs(epochs)
-mean_epochs = mean(epochs, 3)
-mean_epochs2 = mean(epochs2, 3)
+def process(matfile):
 
-figure()
-#plot(mean_epochs[1,:,:])
-plot(rms(mean_epochs, 2)[:, 0])
-figure()
-plot(rms(mean_epochs2, 2)[:, 0])
-
-figure()
-bar(arange(0,200), find_maxdiff(epochs))
-#print "plot 2"
-#
-#figure()
-#hist(reject(epochs)[1], 12)
-#print "plot 3"
-
-show()
+    data, triggers = load_data(matfile)
+    
+    front_sensors = [0, 41, 42, 83, 84, 107, 106, 105, 104, 103, 102, 101, 100, 62, 61, 24, 23]
+    
+    epochs = epoch(data, triggers, front_sensors, range(8))
+    epochs = baseline(epochs.copy())
+    
+    #for c in range(8):
+    #    figure()
+    #    #plot(mean(rms(epochs[c,:,:,:], 1), 1))
+    #    title(r"Mean epochs for channel 0")
+    #    plot(mean(epochs[c, :, 0, :], 1))
+    #
+    mean_epochs = zeros(shape(epochs)[:3])    
+    for c in range(8):
+        accepted_epochs = reject_epochs(epochs[c, :, :, :], method="diff")
+        mean_epochs[c, :, :] = mean(epochs[c, :, :, accepted_epochs], 0)
+    
+    rms_mean_epochs = rms(mean_epochs, 2)
+    
+    standard_1 = rms_mean_epochs[6, :]  # ledif standard
+    deviant_1  = rms_mean_epochs[5, :]  # ledif deviant
+    standard_2 = rms_mean_epochs[4, :]  # ldif  standard
+    deviant_2  = rms_mean_epochs[7, :]  # ldif  deviant
+    standard_3 = rms_mean_epochs[2, :]  # delif standard
+    deviant_3  = rms_mean_epochs[1, :]  # delif deviant
+    standard_4 = rms_mean_epochs[0, :]  # dlif  standard
+    deviant_4  = rms_mean_epochs[3, :]  # dlif  deviant
+    
+    difference_wave_1 = difference_wave(standard_1, deviant_1) # ledif
+    difference_wave_2 = difference_wave(standard_2, deviant_2) # ldif 
+    difference_wave_3 = difference_wave(standard_3, deviant_3) # delif
+    difference_wave_4 = difference_wave(standard_4, deviant_4) # dlif
+    
+    figure() # l,d
+    title("l,d")
+    plot(difference_wave_1) # ledif
+    plot(difference_wave_2) # ldif 
+    
+    figure() # d,l
+    title("d,l")
+    plot(difference_wave_3) # delif
+    plot(difference_wave_4) # dlif
+    
+    show()
+    
+process("R1211-sonority-Filtered.sqd.mat")
