@@ -4,6 +4,7 @@ from pylab import *
 import psyco
 psyco.full()
 
+
 def load_data(thefile):
     print "Loading data ..."
     x = mio.loadmat(thefile)
@@ -118,13 +119,14 @@ def plot_rms_mean_conditions(mean_epochs):
 def difference_wave(standard, deviant): 
     return deviant - standard
 
-def process(matfile):
+def process(matfile, channels_of_interest):
 
     data, triggers = load_data(matfile)
     
     front_sensors = [0, 41, 42, 83, 84, 107, 106, 105, 104, 103, 102, 101, 100, 62, 61, 24, 23]
+    loaded_channels = front_sensors + channels_of_interest
     
-    epochs = epoch(data, triggers, front_sensors, range(8))
+    epochs = epoch(data, triggers, loaded_channels, range(8))
     epochs = baseline(epochs.copy())
     
     #for c in range(8):
@@ -133,10 +135,10 @@ def process(matfile):
     #    title(r"Mean epochs for channel 0")
     #    plot(mean(epochs[c, :, 0, :], 1))
     #
-    mean_epochs = zeros(shape(epochs)[:3])    
+    mean_epochs = zeros((8, shape(epochs)[1], len(channels_of_interest)))    
     for c in range(8):
         accepted_epochs = reject_epochs(epochs[c, :, :, :], method="diff")
-        mean_epochs[c, :, :] = mean(epochs[c, :, :, accepted_epochs], 0)
+        mean_epochs[c, :, :] = mean(epochs[c, :, len(front_sensors):, accepted_epochs], 0)
     
     rms_mean_epochs = rms(mean_epochs, 2)
     
@@ -154,16 +156,77 @@ def process(matfile):
     difference_wave_3 = difference_wave(standard_3, deviant_3) # delif
     difference_wave_4 = difference_wave(standard_4, deviant_4) # dlif
     
-    figure() # l,d
-    title("l,d")
-    plot(difference_wave_1) # ledif
-    plot(difference_wave_2) # ldif 
+    figure()
     
-    figure() # d,l
-    title("d,l")
-    plot(difference_wave_3) # delif
-    plot(difference_wave_4) # dlif
+    subplot(211)
+    title("ledif")
+    plot(standard_1, label="standard")
+    plot(deviant_1, label="deviant")
+    xlim(300, 400)
+    ylim(0, 70)
+    legend()
+    
+    subplot(212)
+    title("ldif")
+    plot(standard_2, label="standard")
+    plot(deviant_2, label="deviant")
+    xlim(300, 400)
+    ylim(0, 70)
+    legend()
+    
+    figure()
+    
+    subplot(211)
+    title("delif")
+    plot(standard_3, label="standard")
+    plot(deviant_3, label="deviant")
+    xlim(300, 400)
+    ylim(0, 70)
+    legend()
+    
+    subplot(212)
+    title("dlif")
+    plot(standard_4, label="standard")
+    plot(deviant_4, label="deviant")
+    xlim(300, 400)
+    ylim(0, 70)
+    legend()
+
+    figure()
+    
+    subplot(211)
+    title("LD - Sonority -1")
+    plot(difference_wave_1, label="ledif dv-st") # ledif
+    plot(difference_wave_2, label="ldif dv-st") # ldif 
+    xlim(300, 400)
+    ylim(-50, 50)
+    legend()
+    
+    subplot(212)
+    title("DL - Sonority +3")
+    plot(difference_wave_3, label="delif dv-st") # delif
+    plot(difference_wave_4, label="dlif dv-st") # dlif
+    xlim(300, 400)
+    ylim(-50, 50)
+    legend()
+    
+    ld_wave = difference_wave_1 - difference_wave_2
+    dl_wave = difference_wave_3 - difference_wave_4
+    
+    figure()
+    
+    subplot(211)
+    plot(ld_wave, label="LD")
+    plot(dl_wave, label="DL")
+    xlim(300, 400)
+    legend()
+    
+    subplot(212)
+    plot(ld_wave - dl_wave)
+    xlim(300, 400)
     
     show()
-    
-process("R1211-sonority-Filtered.sqd.mat")
+
+
+if __name__ == "__main__":
+    process("R1211-sonority-Filtered.sqd.mat", [39, 44, 46, 47, 79, 87, 88, 129, 130, 136])
