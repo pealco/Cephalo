@@ -4,12 +4,11 @@ from pylab import *
 import psyco
 psyco.full()
 
-
 def load_data(thefile):
     print "Loading data ..."
-    x = mio.loadmat(thefile)
-    data     = x["data"]
-    triggers = x["triggers"]
+    matfile = mio.loadmat(thefile)
+    data     = matfile["data"]
+    triggers = matfile["triggers"]
     
     return data, triggers
 
@@ -162,7 +161,7 @@ def process(matfile, channels_of_interest):
     title("ledif")
     plot(standard_1, label="standard")
     plot(deviant_1, label="deviant")
-    xlim(300, 400)
+    #xlim(300, 400)
     ylim(0, 70)
     legend()
     
@@ -170,7 +169,7 @@ def process(matfile, channels_of_interest):
     title("ldif")
     plot(standard_2, label="standard")
     plot(deviant_2, label="deviant")
-    xlim(300, 400)
+    #xlim(300, 400)
     ylim(0, 70)
     legend()
     
@@ -180,7 +179,7 @@ def process(matfile, channels_of_interest):
     title("delif")
     plot(standard_3, label="standard")
     plot(deviant_3, label="deviant")
-    xlim(300, 400)
+    #xlim(300, 400)
     ylim(0, 70)
     legend()
     
@@ -188,7 +187,7 @@ def process(matfile, channels_of_interest):
     title("dlif")
     plot(standard_4, label="standard")
     plot(deviant_4, label="deviant")
-    xlim(300, 400)
+    #xlim(300, 400)
     ylim(0, 70)
     legend()
 
@@ -198,7 +197,7 @@ def process(matfile, channels_of_interest):
     title("LD - Sonority -1")
     plot(difference_wave_1, label="ledif dv-st") # ledif
     plot(difference_wave_2, label="ldif dv-st") # ldif 
-    xlim(300, 400)
+    #xlim(300, 400)
     ylim(-50, 50)
     legend()
     
@@ -206,7 +205,7 @@ def process(matfile, channels_of_interest):
     title("DL - Sonority +3")
     plot(difference_wave_3, label="delif dv-st") # delif
     plot(difference_wave_4, label="dlif dv-st") # dlif
-    xlim(300, 400)
+    #xlim(300, 400)
     ylim(-50, 50)
     legend()
     
@@ -218,15 +217,27 @@ def process(matfile, channels_of_interest):
     subplot(211)
     plot(ld_wave, label="LD")
     plot(dl_wave, label="DL")
-    xlim(300, 400)
+    #xlim(300, 400)
     legend()
     
     subplot(212)
     plot(ld_wave - dl_wave)
-    xlim(300, 400)
+    #xlim(300, 400)
+    
+    figure()
+    
+    title("deviants")
+    plot(difference_wave_2, label="ldif")
+    plot(difference_wave_4, label="delif")
+    #xlim(300, 400)
+    #ylim(0, 70)
+    legend()
+
     
     show()
 
 
 if __name__ == "__main__":
-    process("R1211-sonority-Filtered.sqd.mat", [39, 44, 46, 47, 79, 87, 88, 129, 130, 136])
+    process("R1277-sonority-Filtered.sqd.mat", [43, 44, 80, 82, 85, 77, 87, 88, 90, 129, 63, 99, 116, 117, 118, 69, 94, 121, 122, 143])
+    
+    #R0874 [25, 26, 43, 44, 59, 60, 63, 65, 80, 82, 85, 87, 88, 90, 137, 143, 144, 145, 156]
