@@ -54,7 +54,7 @@ disp('Finding triggers ...')
 
 triggers = zeros(expected_triggers,size(trigger_chans,2)); % Preallocate memory
 
-for condition = 1:8, % TODO remove hardcoded 8
+for condition = 1:length(trigger_chans),
     tmp = find_trigger(file,trigger_chans(condition));
     triggers(:,condition) = tmp(1:expected_triggers);
 end
