@@ -2,8 +2,8 @@ function [brain, refs] = sqd2mat(file, interesting_chans)
 
 % MEG data channels: 0:156
 % MEG ref  channels: 157, 158, 159
-% Matlab data channels: 1:157
-% Matlab ref  channels: 158:160
+% MATLAB data channels: 1:157
+% MATLAB ref  channels: 158:160
 
 % These channels are loaded because they are the ones most likely to contain
 % evidence that a blink has occured. Automatic epoch rejection looks only at
@@ -35,7 +35,6 @@ end
 disp('Filtering and decimating ...')
 for channel = data_chans,
    data{channel+1} = lowpassfilter(data{channel+1}, 1000, 20);
-   %data{channel+1} = lowpassfilter(data{channel+1}, 1000, 20);
 end
 
 disp('Finding triggers ...')
