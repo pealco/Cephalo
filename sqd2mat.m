@@ -1,11 +1,9 @@
-function [brain, refs] = sqd2mat(file, interesting_chans)
-% SQD2MAT Read channels from SQD file and convert to MAT file.
-%    SQD2MAT(F, C) reads channels C from .sqd file F and outputs
+function [brain, refs] = sqd2mat(file, chans, trigger_chans, expected_triggers)
+% SQD2MAT Read channels from .sqd file and save as .mat file.
+%    SQD2MAT(FILE, C) reads channels C from .sqd file F and outputs
 %    a .mat file containing two arrays: DATA, containing continuous
 %    MEG data low-passed filtered at 20 Hz and TRIGGERS containing
 %    the index of triggers for channels 162:169.
-
-
 
 
 % MEG data channels:    0:156
@@ -21,13 +19,13 @@ front_chans    = [0, 41, 42, 83, 84, 107, 106, 105, 104, 103, 102, 101, 100, 62,
 % These should be changed based on what triggers you are using in your
 % experiment. Use MEG160 notation, not MATLAB (i.e., 0 is the first
 % channel).
-trigger_chans = [162, 163, 164, 165, 166, 167, 168, 169];
+%trigger_chans = [162, 163, 164, 165, 166, 167, 168, 169];
 
 % This should be changed based on how many triggers you expect to find.
-expected_triggers = 100;
+% expected_triggers = 100;
 
 
-data_chans = [front_chans  interesting_chans];
+data_chans = [front_chans  chans];
 
 info = sqdread(file, 'info');
 sqd_length = info.SamplesAvailable;
