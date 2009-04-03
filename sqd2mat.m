@@ -1,15 +1,22 @@
 function [brain, refs] = sqd2mat(file, interesting_chans)
+% SQD2MAT Read channels from SQD file and convert to MAT file.
+%    SQD2MAT(F, C) reads channels C from .sqd file F and outputs
+%    a .mat file containing two arrays: DATA, containing continuous
+%    MEG data low-passed filtered at 20 Hz and TRIGGERS containing
+%    the index of triggers for channels 162:169.
 
-% MEG data channels: 0:156
-% MEG ref  channels: 157, 158, 159
+
+
+
+% MEG data channels:    0:156
+% MEG ref channels:     157, 158, 159
 % MATLAB data channels: 1:157
-% MATLAB ref  channels: 158:160
+% MATLAB ref channels:  158, 159, 160
 
 % These channels are loaded because they are the ones most likely to contain
 % evidence that a blink has occured. Automatic epoch rejection looks only at
 % these channels.
 front_chans    = [0, 41, 42, 83, 84, 107, 106, 105, 104, 103, 102, 101, 100, 62, 61, 24, 23];
-data_chans = [front_chans  interesting_chans];
 
 % These should be changed based on what triggers you are using in your
 % experiment. Use MEG160 notation, not MATLAB (i.e., 0 is the first
@@ -18,6 +25,9 @@ trigger_chans = [162, 163, 164, 165, 166, 167, 168, 169];
 
 % This should be changed based on how many triggers you expect to find.
 expected_triggers = 100;
+
+
+data_chans = [front_chans  interesting_chans];
 
 info = sqdread(file, 'info');
 sqd_length = info.SamplesAvailable;
@@ -32,7 +42,7 @@ for channel = data_chans,
     data{channel+1} = current_channel(:,1);
 end
 
-disp('Filtering and decimating ...')
+disp('Filtering ...')
 for channel = data_chans,
    data{channel+1} = lowpassfilter(data{channel+1}, 1000, 20);
 end
