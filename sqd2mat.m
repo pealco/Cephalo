@@ -45,10 +45,10 @@ for channel = data_chans,
     data{channel+1} = current_channel(:,1);
 end
 
-disp('Filtering ...')
-for channel = data_chans,
-   data{channel+1} = lowpassfilter(data{channel+1}, 1000, 20);
-end
+%disp('Filtering ...')
+%for channel = data_chans,
+%   data{channel+1} = lowpassfilter(data{channel+1}, 1000, 20);
+%end
 
 disp('Finding triggers ...')
 
