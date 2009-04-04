@@ -54,14 +54,8 @@ for condition = 1:length(trigger_chans),
     triggers(:,condition) = tmp(1:expected_triggers);
 end
 
-%Some hackery to find the subject name.
-
-[a,b] = strtok(file,'R');
-subjectname = strrep(b,'.sqd','');
-
-%[a,b,c] = mkdir(['matfiles']);
-
-savefile = [file,'.mat']
+% Save the mat file.
+savefile = [file(1:end-4),'.mat']
 save(savefile, 'data', 'triggers')
 
 disp('Done with preprocessing!')
