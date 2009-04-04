@@ -1,4 +1,4 @@
-from scipy.signal import butter, lfilter˝
+from scipy.signal import butter, lfilter
 
 def lfilter_zi(b, a):
     #compute the zi state from the filter parameters. see [Gust96].
