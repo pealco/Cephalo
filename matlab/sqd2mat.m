@@ -45,11 +45,6 @@ for channel = data_chans,
     data{channel+1} = current_channel(:,1);
 end
 
-%disp('Filtering ...')
-%for channel = data_chans,
-%   data{channel+1} = lowpassfilter(data{channel+1}, 1000, 20);
-%end
-
 disp('Finding triggers ...')
 
 triggers = zeros(expected_triggers,size(trigger_chans,2)); % Preallocate memory
