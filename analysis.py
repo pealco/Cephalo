@@ -87,10 +87,10 @@ def reject_by_std_method(data):
             deviations[t] = std(signal[t:t+200])
         
         deviations = abs(deviations - std_signal)
-        if max(deviations) >= 250:
+        if max(deviations) >= 90:
             rejected_epochs += [epoch]
         
-        if max(deviations) < 250:
+        if max(deviations) < 90:
             accepted_epochs += [epoch]
             
     print  rejected_epochs
@@ -120,7 +120,7 @@ def difference_wave(standard, deviant):
     return deviant - standard
     
     
-def lfilter_zi(b,a):
+def lfilter_zi(b, a):
     #compute the zi state from the filter parameters. see [Gust96].
 
     #Based on:
@@ -128,15 +128,15 @@ def lfilter_zi(b,a):
     # filtering, IEEE Transactions on Signal Processing, pp. 988--992, April 1996, 
     # Volume 44, Issue 4
 
-    n=max(len(a),len(b))
+    n = max(len(a), len(b))
 
-    zin = (  eye(n-1) - hstack( (-a[1:n,newaxis],
+    zin = (eye(n-1) - hstack( (-a[1:n,newaxis],
                                  vstack((eye(n-2), zeros(n-2))))))
 
-    zid=  b[1:n] - a[1:n]*b[0]
+    zid = b[1:n] - a[1:n]*b[0]
 
-    zi_matrix=linalg.inv(zin)*(matrix(zid).transpose())
-    zi_return=[]
+    zi_matrix = linalg.inv(zin) * (matrix(zid).transpose())
+    zi_return = []
 
     #convert the result into a regular array (not a matrix)
     for i in range(len(zi_matrix)):
@@ -145,35 +145,35 @@ def lfilter_zi(b,a):
     return array(zi_return)
     
 
-def filtfilt(b,a,x):
+def filtfilt(b, a, x):
     #For now only accepting 1d arrays
-    ntaps=max(len(a),len(b))
-    edge=ntaps*3
+    ntaps = max(len(a), len(b))
+    edge = ntaps * 3
 
     if x.ndim != 1:
-        raise ValueError, "Filiflit is only accepting 1 dimension arrays."
+        raise ValueError, "Filtfilt is only accepting 1 dimension arrays."
 
     #x must be bigger than edge
     if x.size < edge:
         raise ValueError, "Input vector needs to be bigger than 3 * max(len(a),len(b)."
 
     if len(a) < ntaps:
-        a=r_[a,zeros(len(b)-len(a))]
+        a = r_[a, zeros(len(b) - len(a))]
 
     if len(b) < ntaps:
-        b=r_[b,zeros(len(a)-len(b))]
+        b = r_[b, zeros(len(a) - len(b))]
 
-    zi=lfilter_zi(b,a)
+    zi = lfilter_zi(b, a)
 
-    #Grow the signal to have edges for stabilizing 
-    #the filter with inverted replicas of the signal
-    s=r_[2*x[0]-x[edge:1:-1],x,2*x[-1]-x[-1:-edge:-1]]
+    # Grow the signal to have edges for stabilizing the filter with inverted 
+    # replicas of the signal
+    s = r_[2*x[0]-x[edge:1:-1],x,2*x[-1]-x[-1:-edge:-1]]
     #in the case of one go we only need one of the extrems 
     # both are needed for filtfilt
 
-    (y,zf)=lfilter(b,a,s,-1,zi*s[0])
+    y, zf = lfilter(b, a, s, -1, zi*s[0])
 
-    (y,zf)=lfilter(b,a,flipud(y),-1,zi*y[-1])
+    y, zf = lfilter(b, a, flipud(y), -1, zi*y[-1])
 
     return flipud(y[edge-1:-edge+1])
 
@@ -181,14 +181,9 @@ def filtfilt(b,a,x):
 def lowpass(data, Fs, Flp):
     """Lowpass Butterworth filter."""
 
-    # Nyquist frequency
-    Fn = Fs/2.0
-    
-    # Filter order.
-    N = 6
-    
-    # Filter design.
-    b, a = butter(N, max(Flp)/Fn)
+    Fn = Fs/2.0 # Nyquist frequency
+    N = 6 # Filter order.
+    b, a = butter(N, Flp/Fn) # Filter design.
     
     return filtfilt(b, a, data)
     
@@ -202,16 +197,16 @@ def process(matfile, channels_of_interest):
     epochs = epoch(data, triggers, loaded_channels, range(8))
     epochs = baseline(epochs.copy())
     
-    #for c in range(8):
-    #    figure()
-    #    #plot(mean(rms(epochs[c,:,:,:], 1), 1))
-    #    title(r"Mean epochs for channel 0")
-    #    plot(mean(epochs[c, :, 0, :], 1))
-    #
+    for c in loaded_channels:
+        data[c] = lowpass(data[c], 1000, 20)
+        
+    epochs_filt = epoch(data, triggers, loaded_channels, range(8))
+    epochs_filt = baseline(epochs_filt.copy())
+    
     mean_epochs = zeros((8, shape(epochs)[1], len(channels_of_interest)))    
     for c in range(8):
         accepted_epochs = reject_epochs(epochs[c, :, :, :], method="diff")
-        mean_epochs[c, :, :] = mean(epochs[c, :, len(front_sensors):, accepted_epochs], 0)
+        mean_epochs[c, :, :] = mean(epochs_filt[c, :, len(front_sensors):, accepted_epochs], 0)
     
     rms_mean_epochs = rms(mean_epochs, 2)
     
