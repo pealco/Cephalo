@@ -1,9 +1,11 @@
-from scipy.signal import butter, lfilter
+from numpy import vstack, hstack, eye, ones, zeros, linalg, \
+newaxis, r_, flipud, convolve, matrix, array
+from scipy.signal import lfilter, butter
 
 def lfilter_zi(b, a):
     #compute the zi state from the filter parameters. see [Gust96].
 
-    #Based on:
+    # Based on:
     # [Gust96] Fredrik Gustafsson, Determining the initial states in forward-backward 
     # filtering, IEEE Transactions on Signal Processing, pp. 988--992, April 1996, 
     # Volume 44, Issue 4
