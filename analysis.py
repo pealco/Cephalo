@@ -1,28 +1,6 @@
 from megprocess import *
 
-def process(matfile, channels_of_interest):
-
-    data, triggers = load_data(matfile)
-    
-    front_sensors = [0, 41, 42, 83, 84, 107, 106, 105, 104, 103, 102, 101, 100, 62, 61, 24, 23]
-    loaded_channels = front_sensors + channels_of_interest
-    
-    epochs = epoch(data, triggers, loaded_channels, range(8))
-    epochs = baseline(epochs.copy())
-    
-    for c in loaded_channels:
-        data[c] = lowpass(data[c], 1000, 20)
-        
-    epochs_filt = epoch(data, triggers, loaded_channels, range(8))
-    epochs_filt = baseline(epochs_filt.copy())
-    
-    mean_epochs = zeros((8, shape(epochs)[1], len(channels_of_interest)))    
-    for c in range(8):
-        accepted_epochs = reject_epochs(epochs[c, :, :, :], method="diff")
-        mean_epochs[c, :, :] = mean(epochs_filt[c, :, len(front_sensors):, accepted_epochs], 0)
-    
-    rms_mean_epochs = rms(mean_epochs, 2)
-    
+def plot_mmf(rms_mean_epochs):
     standard_1 = rms_mean_epochs[6, :]  # ledif standard
     deviant_1  = rms_mean_epochs[5, :]  # ledif deviant
     standard_2 = rms_mean_epochs[4, :]  # ldif  standard
@@ -115,13 +93,48 @@ def process(matfile, channels_of_interest):
     #ylim(0, 70)
     legend()
 
-    
     show()
+
+def process(matfile, channels_of_interest):
+
+    data, triggers = load_data(matfile)
+    
+    front_sensors = [0, 41, 42, 83, 84, 107, 106, 105, 104, 103, 102, 101, 100, 62, 61, 24, 23]
+    loaded_channels = front_sensors + channels_of_interest
+    
+    epochs = epoch(data, triggers, loaded_channels, range(8)) # Raw epochs.
+    epochs = baseline(epochs.copy())
+    
+    for c in loaded_channels:
+        data[c] = lowpass(data[c], 1000, 20)
+        
+    epochs_filt = epoch(data, triggers, loaded_channels, range(8)) # Filtered epochs.
+    epochs_filt = baseline(epochs_filt.copy())
+    
+    mean_epochs = zeros((8, shape(epochs)[1], len(channels_of_interest)))    
+    for c in range(8):
+        accepted_epochs = reject_epochs(epochs[c, :, :, :], method="diff")
+        mean_epochs[c, :, :] = mean(epochs_filt[c, :, len(front_sensors):, accepted_epochs], 0)
+    
+    rms_mean_epochs = rms(mean_epochs, 2)
+    
+    return rms_mean_epochs
 
 
 if __name__ == "__main__":
+    
+    subjects = [
+        ["R1133-sonority-Filtered.sqd.mat", [39, 43, 44, 80, 82, 87, 88, 90, 129, 137]],
+        ["R1277-sonority-Filtered.sqd.mat", [43, 44, 80, 82, 85, 77, 87, 88, 90, 129]],
+    ]
+    
+    allsubjs = [process(data, channels) for data, channels in subjects]
+    
+    grandaverage = mean(allsubjs, axis=0)
+    
+    plot_mmf(grandaverage)
+    
+    
+    
     #process("R1277-sonority-Filtered.sqd.mat", [43, 44, 80, 82, 85, 77, 87, 88, 90, 129, 63, 99, 116, 117, 118, 69, 94, 121, 122, 143])
-    process("R1133-sonority-Filtered.sqd.mat", [39, 43, 44, 80, 82, 87, 88, 90, 129, 137])
-    
-    
     #R0874 [25, 26, 43, 44, 59, 60, 63, 65, 80, 82, 85, 87, 88, 90, 137, 143, 144, 145, 156]
