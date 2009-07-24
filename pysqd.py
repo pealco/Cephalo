@@ -1,4 +1,4 @@
-from numpy import array, flatnonzero, arange
+from numpy import array, flatnonzero, arange, shape
 from struct import unpack, calcsize
 
 class SquidData():
@@ -152,6 +152,7 @@ class SquidData():
     
     
     def get_data(self):
+        """ This doesn't work right now. """
         raw_offset = self.raw_offset
         framesamples = self.actual_sample_count
         channel_count = self.channel_count
@@ -194,8 +195,8 @@ class SquidData():
         sample_offset = self.channel_count
         self.file.seek(self.raw_offset + (chan_offset * numbytes))
         chunk = 'h' + str(numbytes * (self.channel_count - 1)) + 'x' 
-        data = self.get(str(self.actual_sample_count) + chunk)
-        return array(data)
+        chunk = (chunk * (self.actual_sample_count - 2)) + 'h'
+        return array(self.get(chunk))
         
     
         
@@ -239,27 +240,22 @@ class SquidData():
         return self.__repr__()
         
 if __name__ == '__main__':
-
-    data = SquidData('R0874-sonority-Filtered.sqd')
-    #print data.info()
-    #print data.patient_name
-    #print data.patient_birthdate
-    #print data.patient_gender
-    #print data.patient_handedness
-    #print data.patient_id
+    from pylab import *
+    
+    data = SquidData('R0874.sqd')
     
     chan0 = data.get_channel(0)
-    #print chan0
+
     
     #print shape(data.data)
     #print shape(data.data2)
 
-#figure()
-#plot(chan0[0:10000])
-#print data.data[0, 0:200]
+    figure()
+    plot(chan0[0:10000])
+    print chan0[0:200]
 
-#figure()
-#plot(data.data2[1, 4000:14000])
-#show()
+	#figure()
+	#plot(data.data2[1, 4000:14000])
+    show()
 
 
