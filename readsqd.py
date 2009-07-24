@@ -15,6 +15,6 @@ data = h5f.createCArray(h5f.root, 'carray', array_atom, array_shape, filters=arr
 
 for channel in xrange(squid.channel_count):
     print "Reading channel %d ..." % channel
-    print shape(squid.get_channel(channel))
+    data[channel, :] = squid.get_channel(channel).T
 
 h5f.close()
