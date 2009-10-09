@@ -1,8 +1,9 @@
-from numpy import array, flatnonzero, arange, shape
+from numpy import array, flatnonzero, arange, shape, zeros
 from struct import unpack, calcsize
 
 class SquidData():
     """A class for reading MEG 160 .sqd files."""
+
     def __init__(self, filename, channels=arange(192)):
         self.filename = filename
         self.file = open(self.filename, 'rb')
@@ -12,17 +13,16 @@ class SquidData():
         self.get_acquisition_parameters()
         self.get_data_info()
         self.get_patient_info()
-        #self.get_data()
-        #self.file.close()
-        
+
     def get(self, ctype, size=1):
+        """Reads and unpacks binary data into the desired ctype."""
         chunk = self.file.read(calcsize(ctype) * size)
         return unpack(ctype * size, chunk)
-    
+
     def get_basic_info(self):
         self.file.seek(16)
         basic_offset = self.get('l')[0]
-        
+
         self.file.seek(basic_offset)
         self.version       = self.get('i')[0]
         self.revision      = self.get('i')[0]
@@ -31,19 +31,19 @@ class SquidData():
         self.model_name    = self.get('128s')[0].strip("\n\x00")
         self.channel_count = self.get('i')[0]
         self.comment       = self.get('s', 256)[0].rstrip("\n\x00")
-        
+
     def get_patient_info(self):
         self.file.seek(32)
         patient_offset = self.get('l')[0]
         size           = self.get('l')[0]
         maxcount       = self.get('l')[0]
         count          = self.get('l')[0]
-        
+
         current_offset = patient_offset
         while current_offset < (patient_offset + size * count):
             self.file.seek(current_offset)
             infosize = self.get('l')[0]
-            code     = self.get('l')[0] 
+            code     = self.get('l')[0]
             subcode  = self.get('l')[0]
             data = self.get('c', infosize)
             dataend  = flatnonzero(array(data)=='')[0]
@@ -51,7 +51,7 @@ class SquidData():
             if subcode == 1:
                 if code == 1:
                     self.patient_id = data
-                elif code == 2: 
+                elif code == 2:
                     self.patient_name = data
                 elif code == 3:
                     self.patient_birthdate = data
@@ -59,21 +59,21 @@ class SquidData():
                     self.patient_gender = data
                 elif code == 5:
                     self.patient_handedness = data
-            
+
             current_offset += infosize
-            
-    
-    
+
+
+
     def get_sensitivity_info(self):
         # Get offset of sensitivity values
         self.file.seek(80)
         sensitivity_offset = self.get('l')[0]
-    
+
         # Read sensitivity data
         self.file.seek(sensitivity_offset)
         self.sensitivity = list(self.get('2d', self.channel_count))
         self.sensitivity = zip(*[iter(self.sensitivity)]*2) # Gets elements from the list by 2
-        
+
     def get_amplifier_info(self):
         # Get offset of amplifier information
         self.file.seek(112)
@@ -82,7 +82,7 @@ class SquidData():
         # Get amplifier data
         self.file.seek(amp_offset)
         self.amp_data = self.get('i')[0]
-        
+
         InputGainBit = 11
         InputGainMask = 0x1800
         input_gain_index = (self.amp_data & InputGainMask) >> InputGainBit
@@ -94,12 +94,12 @@ class SquidData():
         output_gain_index = (self.amp_data & OutputGainMask) >> OutputGainBit
         output_gain_multipliers = [1, 2, 5, 10, 20, 50, 100, 200]
         self.output_gain = output_gain_multipliers[output_gain_index]
-        
+
     def get_acquisition_parameters(self):
         # Get offset of acquisition parameters
         self.file.seek(128)
         acqcond_offset = self.get('l')[0]
-        
+
         self.file.seek(acqcond_offset)
         self.acq_type = self.get('l')[0]
 
@@ -132,8 +132,8 @@ class SquidData():
 
         else:
             print "Bad file!"
-        
-    
+
+
     def get_data_info(self):
         if self.acq_type == 1:
             self.file.seek(144)
@@ -149,8 +149,8 @@ class SquidData():
             self.data_type = 'h' # 2-byte Integer
         else:
             print "Error!"
-    
-    
+
+
     def get_data(self):
         """ This doesn't work right now. """
         raw_offset = self.raw_offset
@@ -162,10 +162,10 @@ class SquidData():
         format = self.data_type
         oldformat = self.data_type
         newformat = 'double'
-                
+
         self.file.seek(self.raw_offset)
         read_type = 2
-        
+
         if read_type == 1:
             # Read everything. Usually causes a MemoryError exception.
             total_data = self.channel_count * self.actual_sample_count
@@ -188,18 +188,29 @@ class SquidData():
                 self.file.seek(raw_offset + (sample_offset+chan_offset)*numbytes, )
                 chunk = 'h' + 'x' * 191
                 self.get()
-            
+
     def get_channel(self, channel):
         numbytes = 2 # FIXME
         chan_offset = channel
         sample_offset = self.channel_count
         self.file.seek(self.raw_offset + (chan_offset * numbytes))
-        chunk = 'h' + str(numbytes * (self.channel_count - 1)) + 'x' 
-        chunk = (chunk * (self.actual_sample_count - 2)) + 'h'
-        return array(self.get(chunk))
+        chunk = 'h' + str(numbytes * (self.channel_count - 1)) + 'x'
+        divisor = int(self.sample_rate)
         
-    
+        data = zeros(self.actual_sample_count, dtype='int16')
+        for block in xrange((self.actual_sample_count-1)/divisor):
+            a = block * divisor
+            b = (block+1) * divisor
+            data[a:b] = list(self.get(chunk*divisor))
+            
+        data[b:] = list(self.get((chunk * (divisor - 1)) + 'h' + str((self.channel_count - 1 - channel) * numbytes) + 'x'))
         
+        #data = [list(self.get(chunk*divisor)) for _ in xrange((self.actual_sample_count-1)/divisor)]
+        #data += [list(self.get((chunk * (divisor - 1)) + 'h' + str((192 - 1 - channel) * numbytes) + 'x'))]
+        #data = array(data).flatten()
+        
+        return data
+
     def __repr__(self):
         out = []
         out.append("Basic Information")
@@ -233,29 +244,21 @@ class SquidData():
             out.append("\tPretrigger Length    = %ld[sample]" % self.pretrigger_length)
             out.append("\tAverage Count        = %ld" % self.average_count)
             out.append("\tActual Average Count = %ld" % self.actual_average_count)
-        
+
         return "\n".join(out)
-        
+
     def info(self):
         return self.__repr__()
-        
+
 if __name__ == '__main__':
     from pylab import *
-    
-    data = SquidData('R0874.sqd')
-    
-    chan0 = data.get_channel(0)
 
-    
-    #print shape(data.data)
-    #print shape(data.data2)
+    data = SquidData('R0874.sqd')
+
+    chan0 = data.get_channel(0)
 
     figure()
     plot(chan0[0:10000])
     print chan0[0:200]
 
-	#figure()
-	#plot(data.data2[1, 4000:14000])
     show()
-
-
