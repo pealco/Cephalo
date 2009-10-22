@@ -1,5 +1,7 @@
-from numpy import array, flatnonzero, arange, shape, zeros
+from numpy import array, flatnonzero, arange, shape, zeros, ones
 from struct import unpack, calcsize
+import psyco
+psyco.full()
 
 class SquidData():
     """A class for reading MEG 160 .sqd files."""
@@ -13,6 +15,7 @@ class SquidData():
         self.get_acquisition_parameters()
         self.get_data_info()
         self.get_patient_info()
+        self.compute_convfactor()
 
     def get(self, ctype, size=1):
         """Reads and unpacks binary data into the desired ctype."""
@@ -71,7 +74,7 @@ class SquidData():
 
         # Read sensitivity data
         self.file.seek(sensitivity_offset)
-        self.sensitivity = list(self.get('2d', self.channel_count))
+        self.sensitivity = list(self.get('d', self.channel_count * 2))
         self.sensitivity = zip(*[iter(self.sensitivity)]*2) # Gets elements from the list by 2
 
     def get_amplifier_info(self):
@@ -204,12 +207,19 @@ class SquidData():
             data[a:b] = list(self.get(chunk*divisor))
             
         data[b:] = list(self.get((chunk * (divisor - 1)) + 'h' + str((self.channel_count - 1 - channel) * numbytes) + 'x'))
-        
+                
         #data = [list(self.get(chunk*divisor)) for _ in xrange((self.actual_sample_count-1)/divisor)]
         #data += [list(self.get((chunk * (divisor - 1)) + 'h' + str((192 - 1 - channel) * numbytes) + 'x'))]
         #data = array(data).flatten()
         
         return data
+        
+    
+    def compute_convfactor(self):
+        gain = array([y for x, y in self.sensitivity])
+        ampgain = self.output_gain/float(self.input_gain)
+        
+        self.convfactor = ones(self.channel_count) * ampgain * (gain * 10**12) / (2**12)
 
     def __repr__(self):
         out = []
