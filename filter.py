@@ -62,7 +62,7 @@ def filtfilt(b, a, x):
 
 def lowpass(data, Fs, Flp):
     """Lowpass Butterworth filter."""
-
+    
     Fn = Fs/2.0 # Nyquist frequency
     N = 6 # Filter order.
     b, a = butter(N, Flp/Fn) # Filter design.
