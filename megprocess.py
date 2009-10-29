@@ -8,7 +8,6 @@ def load_data(h5_filename, trigger_channels):
     
     print "Loading data ..."
     
-    #megdata = tables.openFile("R0874.h5", mode = "r+")
     megdata = tables.openFile(h5_filename, mode = "r+")
     raw_data = megdata.root.raw_data
     
@@ -31,7 +30,7 @@ def load_data(h5_filename, trigger_channels):
 def find_triggers(data, trigger_channels):
     """Locates triggers in the trigger channels. Returns a list of arrays."""
     
-    threshold = (25-1) / (5 * 2)
+    threshold = (25-1) / float(5 * 2)
     triggers = [nonzero(diff(data[trigger_channel, :]) > threshold) for trigger_channel in trigger_channels]
     
     return triggers
