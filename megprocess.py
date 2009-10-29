@@ -2,6 +2,8 @@ from numpy import *
 from pylab import *
 from filter import *
 import tables
+from epoch_rejection import *
+from peak_finding import *
 
 def load_data(h5_filename, trigger_channels):
     """Loads an H5 data file containing MEG data."""
