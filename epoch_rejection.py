@@ -1,3 +1,5 @@
+from numpy import *
+
 def find_maxdiff(epochs):
     maxdiff = zeros(shape(epochs)[2])
     bigdiff = zeros(shape(epochs)[2])
@@ -29,6 +31,9 @@ def reject_epochs(data, method="std"):
     elif method == "entropy":
         print "Rejecting epochs using entropy method ..."
         return reject_by_entropy(data)
+    else:
+        print 'Rejection method "%s" not available.' % method
+        return data
 
 def reject_by_std_method(data):
     samples, channels, epochs = shape(data)
@@ -67,27 +72,29 @@ def reject_by_diff_method(data):
     
     print rejected_epochs
     return accepted_epochs
+
+def entropy(signal, bins=64):
+    '''Compute entropy.'''
+    counts = histogram(signal, bins=bins)[0]
+    ps = counts/float(sum(counts))  # coerce to float and normalize
+    ps = ps[nonzero(ps)]            # toss out zeros
+    H = -sum(ps * numpy.log2(ps))   # compute entropy
+    
+    return H
     
 def reject_by_entropy(data, bins=64):
     samples, channels, epochs = shape(data)
     entropies = array([entropy(data[:, :, epoch]) for epoch in xrange(epochs)])
     
     entropies = scale(entropies)
-    rejected_epochs = [epoch for entropy, epoch in zip(entropies, range(epochs)) if entropy > 2.5]
-    accepted_epochs = list(set(rejected_epochs) | set(range(epochs)))
+    rejected_epochs = [epoch for H, epoch in zip(entropies, range(epochs)) if H > 2.5]
+    accepted_epochs = list(set(range(epochs)) - set(rejected_epochs))
     
     print rejected_epochs
     return accepted_epochs
     
 
-def entropy(signal, bins=64):
-    '''Compute entropy.'''
-    counts = histogram(signal, bins=bins)
-    ps = counts/float(sum(counts))  # coerce to float and normalize
-    ps = ps[nonzero(ps)]            # toss out zeros
-    H = -sum(ps * numpy.log2(ps))   # compute entropy
-    
-    return H
+
         
         
         
