@@ -23,9 +23,12 @@ def reject_epochs(data, method="std"):
     if method == "std":
         print "Rejecting epochs using standard deviation method ..."
         return reject_by_std_method(data)
-    else:
+    elif method == "diff":
         print "Rejecting epochs using difference method ..."
         return reject_by_diff_method(data)
+    elif method == "entropy":
+        print "Rejecting epochs using entropy method ..."
+        return reject_by_entropy(data)
 
 def reject_by_std_method(data):
     samples, channels, epochs = shape(data)
@@ -65,13 +68,26 @@ def reject_by_diff_method(data):
     print rejected_epochs
     return accepted_epochs
     
-def reject_by_entropy(data):
+def reject_by_entropy(data, bins=64):
     samples, channels, epochs = shape(data)
+    entropies = array([entropy(data[:, :, epoch]) for epoch in xrange(epochs)])
     
-    for epoch in xrange(epochs):
-        signal = data[:, :, epoch]
-        H = entropy(signal)
-        
+    entropies = scale(entropies)
+    rejected_epochs = [epoch for entropy, epoch in zip(entropies, range(epochs)) if entropy > 2.5]
+    accepted_epochs = list(set(rejected_epochs) | set(range(epochs)))
+    
+    print rejected_epochs
+    return accepted_epochs
+    
+
+def entropy(signal, bins=64):
+    '''Compute entropy.'''
+    counts = histogram(signal, bins=bins)
+    ps = counts/float(sum(counts))  # coerce to float and normalize
+    ps = ps[nonzero(ps)]            # toss out zeros
+    H = -sum(ps * numpy.log2(ps))   # compute entropy
+    
+    return H
         
         
         
