@@ -73,25 +73,23 @@ def find_peaks(x, signal, slope_threshold, amplitude_threshold, smooth_width, pe
             peak_group_x, peak_group_x_mean, peak_group_x_std = scale(peak_group_x, full=True)
             
             # Fit peak_group to a parabola to find the peak.
-            coefficients = polyfit(peak_group_x, log(abs(peak_group_y)), deg=2)
+            coefficients, error = fit_parabola(peak_group_x, peak_group_y)
             c1, c2, c3 = reversed(coefficients)
             
             peak_x = -((peak_group_x_std * c2 / (2 * c3)) - peak_group_x_mean)
             peak_y = exp(c1 - c3 * (c2 / (2 * c3)) ** 2)
             
             P.append([peak_x, peak_y])
+            print error
 
     return asarray(P)
 
-def scale(a, full=False):
-    a_mean = a.mean()
-    a_std = a.std(ddof=1)
-    a_scaled = (a - a_mean) / a_std
+def fit_parabola(x, y):
+    coefficients = polyfit(x, log(abs(y)), deg=2)
+    model_fit = polyval(coefficients, x)
+    error = rms_error(x, model_fit)
     
-    if full:
-        return a_scaled, a_mean, a_std
-    else:
-        return a_scaled
+    return coefficients, error
 
 if __name__ == "__main__":
     x = arange(0, 60, 0.1)
