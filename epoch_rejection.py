@@ -64,3 +64,14 @@ def reject_by_diff_method(data):
     
     print rejected_epochs
     return accepted_epochs
+    
+def reject_by_entropy(data):
+    samples, channels, epochs = shape(data)
+    
+    for epoch in xrange(epochs):
+        signal = data[:, :, epoch]
+        H = entropy(signal)
+        
+        
+        
+        
