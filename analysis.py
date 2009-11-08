@@ -1,15 +1,18 @@
 from megprocess import *
 from numpy import savetxt
 
+
 def plot_mmf(rms_mean_epochs):
-    standard_1 = rms_mean_epochs[6, :]  # ledif standard
-    deviant_1  = rms_mean_epochs[5, :]  # ledif deviant
-    standard_2 = rms_mean_epochs[4, :]  # ldif  standard
-    deviant_2  = rms_mean_epochs[7, :]  # ldif  deviant
-    standard_3 = rms_mean_epochs[2, :]  # delif standard
-    deviant_3  = rms_mean_epochs[1, :]  # delif deviant
+
     standard_4 = rms_mean_epochs[0, :]  # dlif  standard
+    deviant_3  = rms_mean_epochs[1, :]  # delif deviant
+    standard_3 = rms_mean_epochs[2, :]  # delif standard
     deviant_4  = rms_mean_epochs[3, :]  # dlif  deviant
+    standard_2 = rms_mean_epochs[4, :]  # ldif  standard
+    deviant_1  = rms_mean_epochs[5, :]  # ledif deviant
+    standard_1 = rms_mean_epochs[6, :]  # ledif standard
+    deviant_2  = rms_mean_epochs[7, :]  # ldif  deviant
+
     
     difference_wave_1 = difference_wave(standard_1, deviant_1) # ledif
     difference_wave_2 = difference_wave(standard_2, deviant_2) # ldif 
@@ -105,11 +108,11 @@ def process(h5_file, channels_of_interest):
     loaded_channels = front_sensors + channels_of_interest
     
     print "Filtering ..."
-    for c in loaded_channels:
+    for c in range(157):
         megdata.root.lowpass_data[c] = lowpass(megdata.root.raw_data[c] * megdata.root.convfactor[c], 1000, 20) 
     
-    epochs = epoch(megdata.root.raw_data, megdata.root.triggers, loaded_channels, range(8)) # Raw epochs.
-    epochs_filtered = epoch(megdata.root.lowpass_data, megdata.root.triggers, loaded_channels, range(8)) # Filtered epochs.
+    epochs = epoch(megdata.root.raw_data, megdata.root.triggers, range(157), range(8)) # Raw epochs.
+    epochs_filtered = epoch(megdata.root.lowpass_data, megdata.root.triggers, range(157), range(8)) # Filtered epochs.
     
     epochs = baseline(epochs.copy())
     epochs_filtered = baseline(epochs_filtered.copy())
@@ -118,7 +121,13 @@ def process(h5_file, channels_of_interest):
     
     mean_epochs = zeros((8, shape(epochs)[1], len(channels_of_interest)))    
     for c in range(8):
-    	accepted_epochs = reject_epochs(epochs[c, :, :, :], method="std")
+    	accepted_epochs = reject_epochs(epochs[c, :, :, :], method="diff")
+    	rejected_epochs = list(set(range(shape(epochs[c,:,:,:])[2])) - set(accepted_epochs))
+    	#for e in rejected_epochs:
+    	#    figure()
+    	#    plot(epochs[c,:,:,e])
+    	
+    	#show()
     	mean_epochs[c,:,:] = mean(epochs_filtered[c, :, len(front_sensors):, accepted_epochs], 0)
     
     rms_mean_epochs = rms(mean_epochs, 2)
@@ -136,16 +145,16 @@ if __name__ == "__main__":
     directory = ""
     
     subjects = [
-        (directory + "R0692.h5", [c for c in [25, 39, 40, 44, 59, 60, 80, 85, 90, 96, 99, 116, 117, 127, 137, 138, 143, 144, 156] if c in left_hemisphere]),
-        (directory + "R0874.h5", [c for c in [25, 43, 44, 59, 60, 61, 62, 63, 80, 82, 85, 88, 90, 119, 129, 137, 138, 143, 144, 156] if c in left_hemisphere]),
-        (directory + "R1093.h5", [c for c in [44, 79, 80, 85, 88, 90, 96, 97, 99, 116, 117, 118, 121, 127, 129, 131, 137, 138, 143, 144, 152] if c in left_hemisphere]),
-        #(directory + "R1105.h5", [c for c in [45, 65, 66, 68, 69, 76, 77, 79, 80, 88, 90, 94, 96, 99, 117, 118, 121, 127, 130, 136] if c in left_hemisphere]),
-        (directory + "R1133.h5", [c for c in [39, 43, 44, 59, 60, 63, 65, 68, 80, 82, 87, 88, 90, 96, 97, 99, 119, 129, 137, 144] if c in left_hemisphere]),
-        (directory + "R1193.h5", [c for c in [43, 44, 76, 77, 80, 82, 85, 88, 90, 127] if c in left_hemisphere]),
-        (directory + "R1277.h5", [c for c in [43, 44, 77, 80, 82, 85, 87, 88, 90, 129] if c in left_hemisphere]),
-        (directory + "R1292.h5", [c for c in [48, 65, 68, 69, 76, 77, 79, 80, 85, 88, 90, 94, 96, 99, 116, 117, 118, 121, 130, 131] if c in left_hemisphere]),
-        (directory + "R1344.h5", [c for c in [25, 39, 40, 43, 44, 45, 59, 60, 63, 65, 80, 82, 99, 127, 137, 138, 143, 144, 145, 156] if c in left_hemisphere]),
-        (directory + "R1348.h5", [c for c in [39, 43, 44, 48, 56, 59, 60, 63, 65, 68, 76, 77, 80, 82, 88, 90, 96, 97, 99] if c in left_hemisphere])
+        #(directory + "R0692.h5", [c for c in [25, 39, 40, 44, 59, 60, 80, 85, 90, 96, 99, 116, 117, 127, 137, 138, 143, 144, 156] if c in left_hemisphere]),
+        #(directory + "R0874.h5", [c for c in [25, 43, 44, 59, 60, 61, 62, 63, 80, 82, 85, 88, 90, 119, 129, 137, 138, 143, 144, 156] if c in left_hemisphere])
+        #(directory + "R1093.h5", [c for c in [44, 79, 80, 85, 88, 90, 96, 97, 99, 116, 117, 118, 121, 127, 129, 131, 137, 138, 143, 144, 152] if c in left_hemisphere])
+        #(directory + "R1105.h5", [c for c in [45, 65, 66, 68, 69, 76, 77, 79, 80, 88, 90, 94, 96, 99, 117, 118, 121, 127, 130, 136] if c in left_hemisphere])
+        (directory + "R1133.h5", [c for c in [39, 43, 44, 59, 60, 63, 65, 68, 80, 82, 87, 88, 90, 96, 97, 99, 119, 129, 137, 144] if c in left_hemisphere])
+        #(directory + "R1193.h5", [c for c in [43, 44, 76, 77, 80, 82, 85, 88, 90, 127] if c in left_hemisphere]),
+        #(directory + "R1277.h5", [c for c in [43, 44, 77, 80, 82, 85, 87, 88, 90, 129] if c in left_hemisphere]),
+        #(directory + "R1292.h5", [c for c in [48, 65, 68, 69, 76, 77, 79, 80, 85, 88, 90, 94, 96, 99, 116, 117, 118, 121, 130, 131] if c in left_hemisphere]),
+        #(directory + "R1344.h5", [c for c in [25, 39, 40, 43, 44, 45, 59, 60, 63, 65, 80, 82, 99, 127, 137, 138, 143, 144, 145, 156] if c in left_hemisphere])
+        #(directory + "R1348.h5", [c for c in [39, 43, 44, 48, 56, 59, 60, 63, 65, 68, 76, 77, 80, 82, 88, 90, 96, 97, 99] if c in left_hemisphere])
     ]
     
     allsubjs = [process(h5_file, channels) for h5_file, channels in subjects]
