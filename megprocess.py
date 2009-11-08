@@ -25,7 +25,7 @@ def load_data(h5_filename, trigger_channels):
     
     print "Finding triggers ..."
     for trigger_set in find_triggers(raw_data, trigger_channels):
-        triggers.append(trigger_set[0])
+        triggers.append(trigger_set)
     
     return megdata
 
@@ -33,7 +33,11 @@ def find_triggers(data, trigger_channels):
     """Locates triggers in the trigger channels. Returns a list of arrays."""
     
     threshold = (25-1) / float(5 * 2)
-    triggers = [nonzero(diff(data[trigger_channel, :]) > threshold) for trigger_channel in trigger_channels]
+    triggers = [nonzero(diff(data[trigger_channel, :]) > threshold)[0] for trigger_channel in trigger_channels]
+    for i in range(len(triggers)):
+        triggers[i] = triggers[i][triggers[i] > 100]
+        trigger_pairs = zip(triggers[i], triggers[i][1:])
+        triggers[i] = [trigger_pair[0] for trigger_pair in trigger_pairs if diff(trigger_pair) > 100]
     
     return triggers
 
@@ -72,6 +76,9 @@ def epoch(data, triggers, channels, conditions, max_epochs=100):
 def save_epochs(megdata, epochs, epochs_filtered):
     """ This needs cleaning up to avoid repitition."""
     
+    print "Saving epochs ..."
+    print shape(epochs)
+    
     if "/epochs" not in megdata:
         megdata.createCArray(megdata.root, "epochs", tables.Float32Atom(), shape(epochs))
         
@@ -80,6 +87,8 @@ def save_epochs(megdata, epochs, epochs_filtered):
     
     megdata.root.epochs[:] = epochs
     megdata.root.epochs_filtered[:] = epochs_filtered
+    
+    print "Done saving ..."
 
 
 def baseline(epochs):
