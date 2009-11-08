@@ -1,0 +1,26 @@
+# Experiment Info
+name: Ledif
+experimenter: Pedro Alcocer
+design: mmf
+data_directory: .data
+
+# Parameters
+standards:
+    162: dlif
+    164: delif
+    166: ldif
+    168: ledif
+deviants:
+    163: delif
+    165: dlif
+    167: ledif
+    169: ldif
+
+# Epochs
+epoch_pre:  100
+epoch_post: 500
+expected_epochs: 100
+
+subjects:
+    R1093: [44, 79, 80, 85, 88, 90, 127, 129, 131, 137, 138]
+    R1105: [45, 76, 77, 79, 80, 88, 90, 127, 130, 136]

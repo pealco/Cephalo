@@ -1,5 +1,6 @@
 from pylab import *
 from itertools import izip
+from utility import *
 
 def deriv(signal):
     first  = [signal[1] - signal[0]]

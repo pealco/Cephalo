@@ -1,0 +1,82 @@
+% Use a one-sided article template
+\documentclass[oneside, 12pt]{article}
+% Decrease the margins a little
+\usepackage{fullpage}
+
+% Support UTF8 input
+\usepackage[utf8]{inputenc}
+
+% Set up for including graphics
+% We'll use png or pdf graphics
+\usepackage[pdftex]{graphicx}
+\DeclareGraphicsExtensions{.png,.pdf}
+
+% Hyperref adds hyperlinks to the document automatically
+% It's not much use yet, but it will be
+\usepackage{hyperref}
+
+% For including code into the document
+\usepackage{verbatim}
+
+% Tweak the default fonts a little
+\renewcommand\rmdefault{bch}
+\usepackage[small]{caption}
+\usepackage[small]{titlesec}
+\linespread{1.07}
+
+% Typographic tweaks
+\usepackage{microtype}
+
+% Packages for linguistics
+\usepackage{linguex}
+
+\title{MEG analysis with Cephalo}
+\author{Pedro Alcocer}
+\date{\today}
+
+\raggedbottom
+
+\begin{document}
+\maketitle
+
+\section{Introduction}
+
+Cephalo is a platform for the rapid analysis and visualization of MEG experiments. 
+
+Magnetoencephalography produces a lot of data. A typical experimental session produces about 1.5 GB of data. An entire experiment can run into the tens of gigabytes.
+
+\section{Meta-experiments}
+
+Studies tend to reuse experimental paradigms. Often, the only thing that varies between two experiments is the stimuli and certain presentation parameters. 
+
+Cephalo is currently equipped to quickly analyze two kinds of meta-experiments: those involving the M100, and those looking at the MMF.
+
+\subsection{MMF}
+
+The magnetic mismatch field (MMF) is the magnetic counterpart to the mismatch negativity (MMN) component. This kind of study typically compares the brain response two stimuli, one standard and one deviant.
+
+In the simplest version of this kind of experiment, a subject passively listens to two stimuli, one of which (termed the standard) is much more frequent than the other (the deviant) in presentation.
+
+\begin{figure}[h]
+	\begin{center}
+	\setlength{\fboxsep}{10pt}% 
+	\fbox{%
+		\begin{minipage}{12cm}
+		\begin{center}
+			SSSSSS\textbf{D}SSSSSS\textbf{D}SSSSSSSS\textbf{D}SSSS\textbf{D}SSSSSSS\textbf{D}SSSS\textbf{D}
+		\end{center}
+		\end{minipage}
+	}
+\end{center}
+\caption{A stimuli stream of standards and deviants.}
+\end{figure}
+
+
+
+
+The brain response to an epoch
+
+
+\subsection{M100}
+
+\end{document}

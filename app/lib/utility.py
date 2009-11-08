@@ -1,3 +1,5 @@
+from numpy import *
+
 def rms_error(a, b):
     return rms(a - b)
 
