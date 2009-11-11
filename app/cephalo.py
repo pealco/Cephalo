@@ -3,7 +3,10 @@ import yaml
 import tables
 from lib.megprocess import *
 
-class Model():
+class Configuration():
+    def __init__(self, config_file):
+        self.get_config()
+    
     def get_config(self):
         try:
             config_file = sys.argv[1]
@@ -12,47 +15,48 @@ class Model():
         
         self.parse_config(config_file)
         
+    
     def parse_config(self, config_file):
         stream = file(config_file, 'r')
         config = yaml.load(stream)
-        
+    
         # Set default experiment name.
         if 'name' in config:
             self.name = config['name']
         else:
             self.name = "Untitled MEG experiment"
-        
+    
         # Set default experimenter name
         if 'experimenter' in config:    
             self.experimenter = config['experimenter']
         else:
             self.experimenter = "Anonymous Experimenter"
-        
+    
         # Set default data directory.
         if 'data_directory' in config:
             self.data_directory = config['data_directory']
         else:
             self.data_directory = "."
-            
+    
         # Set epochs
         if 'epoch_pre' not in config:
             self.epoch_pre = 100
             print "epoch_pre unspecified. Setting to 100."
         else:
             self.epoch_pre = config['epoch_pre']
-            
+    
         if 'epoch_post' not in config:
             self.epoch_post = 500
             print "epoch_post unspecified. Setting to 500."
         else:
             self.epoch_post = config['epoch_post']
-            
+    
         if 'expected_epochs' not in config:
             self.expected_epochs = 100
             print "expected_epochs unspecified. Setting to 100."
         else:
             self.expected_epochs = config['expected_epochs']
-        
+    
         # Set default experiment design.
         # TODO: This should be removed once more experiment designs are implemented.
         if 'design' in config:
@@ -60,7 +64,7 @@ class Model():
         else:
             self.design = "mmf"
             print "No design specified. Assuming this is an MMF design."
-
+    
         # Load standard and deviants lists.
         if self.design.lower() == "mmf" or self.design.lower() == "mmn":
             if 'standards' not in config or 'deviants' not in config:
@@ -69,12 +73,14 @@ class Model():
             self.deviants = config['deviants']
             self.trigger_channels = self.standards.keys() + self.deviants.keys()
             self.num_of_conditions = len(self.trigger_channels)
-            
+    
         if 'subjects' not in config or config['subjects'] == {}:
             raise ValueError("No subjects specified.")
         else:
             self.subjects = config['subjects']
-        
+
+class Model():
+    
     def process(self, subject, channels_of_interest):
         h5_file = self.data_directory + subject + ".h5"
         
@@ -91,7 +97,7 @@ class Model():
         epochs = epoch(data.root.raw_data, data.root.triggers, loaded_channels, range(self.num_of_conditions)) # Raw epochs.
         epochs_filtered = epoch(data.root.lowpass_data, data.root.triggers, loaded_channels, range(self.num_of_conditions)) # Filtered epochs.
         
-        epochs = baseline(epochs.copy())
+        epochs = baseline(epochs.copy(), self.epochs_pre)
         epochs_filtered = baseline(epochs_filtered.copy())
         
         save_epochs(data, epochs, epochs_filtered)
