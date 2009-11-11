@@ -79,22 +79,22 @@ class Model():
         h5_file = self.data_directory + subject + ".h5"
         
         print "Working on ", h5_file, "..."
-        megdata = load_data(h5_file, self.trigger_channels)
+        data = load_data(h5_file, self.trigger_channels)
         
         front_sensors = [0, 41, 42, 83, 84, 107, 106, 105, 104, 103, 102, 101, 100, 62, 61, 24, 23]
         loaded_channels = front_sensors + channels_of_interest
         
         print "Filtering ..."
         for c in range(157):
-            megdata.root.lowpass_data[c] = lowpass(megdata.root.raw_data[c] * megdata.root.convfactor[c], 1000, 20) 
+            data.root.lowpass_data[c] = lowpass(data.root.raw_data[c] * data.root.convfactor[c], 1000, 20) 
         
-        epochs = epoch(megdata.root.raw_data, megdata.root.triggers, loaded_channels, range(self.num_of_conditions)) # Raw epochs.
-        epochs_filtered = epoch(megdata.root.lowpass_data, megdata.root.triggers, loaded_channels, range(self.num_of_conditions)) # Filtered epochs.
+        epochs = epoch(data.root.raw_data, data.root.triggers, loaded_channels, range(self.num_of_conditions)) # Raw epochs.
+        epochs_filtered = epoch(data.root.lowpass_data, data.root.triggers, loaded_channels, range(self.num_of_conditions)) # Filtered epochs.
         
         epochs = baseline(epochs.copy())
         epochs_filtered = baseline(epochs_filtered.copy())
         
-        save_epochs(megdata, epochs, epochs_filtered)
+        save_epochs(data, epochs, epochs_filtered)
         
         mean_epochs = zeros((self.num_of_conditions, shape(epochs)[1], len(channels_of_interest)))    
         for c in range(8):
@@ -105,7 +105,7 @@ class Model():
         
         rms_mean_epochs = rms(mean_epochs, 2)
         
-        megdata.close()
+        data.close()
         
         return rms_mean_epochs
         
@@ -118,7 +118,7 @@ class View():
     def plot_mmf(self, grand_average):
         
         for standard in self.model.standards:
-            
+            pass
         
         for deviant in self.model.standards:
             pass
@@ -186,9 +186,7 @@ class Experiment():
         self.model.analyze()
         
         self.view.plot_mmf(self.model.grand_average)
-        
 
-        
+if __name__ == "__main__":
     
-
-exp = Experiment()
+    exp = Experiment()
