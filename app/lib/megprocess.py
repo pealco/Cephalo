@@ -1,44 +1,10 @@
 from numpy import *
 from pylab import *
-from filter import *
+from filters import *
 import tables
 from epoch_rejection import *
 from peak_finding import *
 
-def load_data(h5_filename, trigger_channels):
-    """Loads an H5 data file containing MEG data."""
-    
-    print "Loading data ..."
-    
-    megdata = tables.openFile(h5_filename, mode = "r+")
-    raw_data = megdata.root.raw_data
-    
-    # Create CArray for lowpassed data.
-    if "/lowpass_data" not in megdata:
-        lowpass_data = megdata.createCArray(
-            where=megdata.root, 
-            name='lowpass_data', 
-            atom=tables.Float32Atom(), 
-            shape=shape(raw_data),
-            filters=tables.Filters(1)
-            )
-    
-    # Create and fill triggers VLArray. Allows for ragged rows.
-    if "/triggers" in megdata:
-        megdata.root.triggers.remove()
-        
-    triggers = megdata.createVLArray(
-                   where=megdata.root, 
-                   name='triggers',
-                   atom=tables.Int32Atom(),
-                   filters=tables.Filters(1)
-                   )
-    
-    print "Finding triggers ..."
-    for trigger_set in find_triggers(raw_data, trigger_channels):
-        triggers.append(trigger_set)
-    
-    return megdata
 
 def find_triggers(data, trigger_channels):
     """Locates triggers in the trigger channels. Returns a list of arrays."""
@@ -52,7 +18,7 @@ def find_triggers(data, trigger_channels):
     
     return triggers
 
-def epoch(data, triggers, channels, config):
+def epoch(data, triggers, channels, config, name="epochs"):
     """Pulls out the epochs from the long data file."""
     
     conditions = config.num_of_conditions
@@ -77,6 +43,8 @@ def epoch(data, triggers, channels, config):
                 epoch_end   = triggers[condition][t] + stimulus_post
                 the_epoch = the_chan[range(epoch_start, epoch_end + 1)]
                 epochs[condition, :, channel_index, i] = the_epoch
+    
+    
     
     ## This should work in the next version of pytables. Uses fancy indexing.   
     #for condition in conditions: 
