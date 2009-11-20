@@ -16,14 +16,14 @@ def scale(a, full=False):
     else:
         return a_scaled
 
-def save(self, filename, contents):
+def save_table(filename, contents):
     fh = open(filename, 'w')
     fh.write(contents)
     fh.close()
 
 def get_hemisphere(channel, axis, boolean=False):
     
-    left      = [  1,   2,   3,   4,   5,   6,   7,   8,   9,  11, 
+    left      = [ 0,  1,   2,   3,   4,   5,   6,   7,   8,   9,  11, 
                   33,  34,  35,  36,  37,  38,  39,  40,  41,  42,  
                   43,  44,  45,  46,  47,  48,  49,  50,  51,  52,
                   58,  64,  67,  71,  73,  74,  75,  76,  77,  78,
@@ -42,7 +42,7 @@ def get_hemisphere(channel, axis, boolean=False):
                  143, 144, 145, 146, 147, 148, 149, 152, 153, 154, 
                  155, 156]
     
-    anterior  = [ ]
+    anterior  = range(157)
     
     posterior = [ ]
     
