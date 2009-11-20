@@ -21,7 +21,7 @@ def save(self, filename, contents):
     fh.write(contents)
     fh.close()
 
-def get_hemisphere(channel, axis):
+def get_hemisphere(channel, axis, boolean=False):
     
     left      = [  1,   2,   3,   4,   5,   6,   7,   8,   9,  11, 
                   33,  34,  35,  36,  37,  38,  39,  40,  41,  42,  
@@ -48,9 +48,26 @@ def get_hemisphere(channel, axis):
     
     if axis == "x":
         if channel in left:
-            return "left"
+            hemisphere = "left"
         elif channel in right:
-            return "right"
+            hemisphere = "right"
+        else:
+            raise ValueError("Channel %d is not a valid channel." % channel) 
+    elif axis == "y":
+        if channel in anterior:
+            hemisphere = "anterior"
+        elif channel in posterior:
+            hemisphere = "posterior"
         else:
             raise ValueError("Channel %d is not a valid channel." % channel)
+            
+    if boolean:
+        if hemisphere == "left" or hemisphere == "anterior":
+            return False
+        else:
+            return True
+    else:
+        return hemisphere
+                
+            
     
