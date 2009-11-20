@@ -38,6 +38,11 @@ class Configuration():
             self.data_directory = config['data_directory']
         else:
             self.data_directory = "."
+            
+        if 'output_directory' in config:
+            self.output_directory = config['output_directory']
+        else:
+            self.output_directory = "output/"
     
         # Set epochs
         if 'epoch_pre' not in config:
@@ -270,7 +275,7 @@ class Experiment():
         # Views
         self.view = View(self.model)
 
-        output_filename = self.config.name + ".output.txt"
+        output_filename = self.config.output_directory + '/' + self.config.name + ".output.txt"
         data_table = self.view.data_table(self.model.data)
  
         self.save(output_filename, data_table)
