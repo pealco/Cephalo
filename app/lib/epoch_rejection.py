@@ -58,7 +58,7 @@ def reject_by_std_method(data):
             accepted_epochs += [epoch]
             
     print  rejected_epochs
-    return accepted_epochs
+    return accepted_epochs, rejected_epochs
     
     
 def reject_by_diff_method(data):
@@ -66,19 +66,14 @@ def reject_by_diff_method(data):
     samples, channels, epochs = shape(data)
     
     maxdiffs = find_maxdiff(data)
-    #maxdiffs_mean = mean(maxdiffs)
-    #maxdiffs_std  = std(maxdiffs)
     
     maxdiffs = scale(maxdiffs)
     
     rejected_epochs = where(maxdiffs >= threshold)[0]
     accepted_epochs = where(maxdiffs < threshold)[0]
     
-    #rejected_epochs = arange(len(maxdiffs))[maxdiffs > maxdiffs_mean + 2*maxdiffs_std]
-    #accepted_epochs = arange(len(maxdiffs))[maxdiffs <= maxdiffs_mean + 2*maxdiffs_std]
-    
     print rejected_epochs
-    return accepted_epochs
+    return accepted_epochs, rejected_epochs
 
 def entropy(signal, bins=64):
     '''Compute entropy.'''
@@ -98,7 +93,7 @@ def reject_by_entropy(data):
     accepted_epochs = list(set(range(epochs)) - set(rejected_epochs))
     
     print rejected_epochs
-    return accepted_epochs
+    return accepted_epochs, rejected_epochs
     
 def reject_by_prob(data):
     counts = [histogram(epochs[:,:,chan,:], bins=4165, normed=True)[0] for chan in xrange(157)]
