@@ -110,26 +110,19 @@ class Model():
         data.epoch("raw_data")
         data.epoch("lowpass_data")
         
+        # Automatic epoch rejection
         data.reject_epochs(method="diff")
+        
+        # Compute mean epochs
+        data.mean_epochs()
                 
-        epochs = data.h5_file.root.raw_data_epochs
-        data.mean_epochs = zeros((self.config.num_of_conditions, shape(epochs)[1], len(data.channels_of_interest)))    
-        for c in range(self.config.num_of_conditions):
-            accepted_epochs = reject_epochs(epochs[c, :, :, :], method="diff")
-            rejected_epochs = list(set(range(shape(epochs[c,:,:,:])[2])) - set(accepted_epochs))
-            
-            data.mean_epochs[c,:,:] = mean(data.epochs_filtered[c, :, len(front_sensors):, accepted_epochs], 0)
-        
-        #rms_mean_epochs = rms(mean_epochs, 2)
-        
         data.h5_file.close()
         
-        #return rms_mean_epochs
         return data
         
     def analyze(self):
 
-        self.mean_epochs = [self.process(subject) for subject in self.config.subjects]
+        self.data = [self.process(subject) for subject in self.config.subjects]
         
         #self.allsubjs = [self.process(subject, channels) for subject, channels in self.config.subjects.iteritems()]
         
@@ -206,20 +199,19 @@ class View():
     
     
     
-    def output_for_r(self):
-        self.model.mean_epochs = array(self.model.mean_epochs)
-        subjects, conditions, samples, channels = shape(self.model.mean_epochs)
-        print shape(self.model.mean_epochs)
-        
+    def output_for_r(self, data_sets):
         out = "subject condition sample channel value\n"
+        for data in data_sets:
+            data.mean_epochs = array(data.mean_epochs)
+            conditions, samples, channels = shape(data.mean_epochs)
+            print shape(data.mean_epochs)
         
-        for subject in xrange(subjects):
             for condition in xrange(conditions):
                 for sample in xrange(samples):
                     for channel in xrange(channels):
-                        out += "s%d c%d %d ch%d %f\n" % (subject+1, condition+1, sample-self.model.config.epoch_pre, channel+1, self.model.mean_epochs[subject, condition, sample, channel])
-                    
-        return out
+                        out += "%s c%d %d ch%d %f\n" % (data.subject, condition+1, sample-self.model.config.epoch_pre, channel+1, data.mean_epochs[condition, sample, channel])
+                        
+            return out
     
     def to_table(self, data):
         table = data.createTable(
@@ -269,7 +261,7 @@ class Experiment():
         # Views
         self.view = View(self.model)
         
-        output = self.view.output_for_r()
+        output = self.view.output_for_r(self.model.data)
         self.save("output.txt", output)
         
         #self.view.plot_mmf()
@@ -297,8 +289,6 @@ class Data(object):
         self.h5_filename = self.config.data_directory + self.subject + ".h5"
         self.h5_file = tables.openFile(self.h5_filename, mode = "r+")
         
-        return True
-
     
     def load_triggers(self):
         """Create and fill triggers VLArray. Allows for ragged rows."""
@@ -319,9 +309,7 @@ class Data(object):
         return True
     
     def lowpass(self):
-        front_sensors = [0, 41, 42, 83, 84, 107, 106, 105, 104, 103, 102, 101, 100, 62, 61, 24, 23]
-        loaded_channels = front_sensors + self.channels_of_interest
-        
+
         # Create CArray for lowpassed data.
         if "/lowpass_data" not in self.h5_file:
             
@@ -343,8 +331,10 @@ class Data(object):
     
     def epoch(self, data_array, apply_baseline=True):
         """Pulls out the epochs from the long data file."""
+        self.front_sensors = [0, 41, 42, 83, 84, 107, 106, 105, 104, 103, 102, 101, 100, 62, 61, 24, 23]
+        self.loaded_channels = self.front_sensors + self.channels_of_interest
         
-        channels = self.channels_of_interest
+        channels = self.loaded_channels
         conditions = self.config.num_of_conditions
         expected_epochs = self.config.expected_epochs
         stimulus_pre = self.config.epoch_pre
@@ -429,20 +419,29 @@ class Data(object):
         
         if method == "std":
             print "Rejecting epochs using standard deviation method ..."
-            accepted, rejected = reject_by_std_method(raw_data_epochs)
+            reject_fn = reject_by_std_method
         elif method == "diff":
             print "Rejecting epochs using difference method ..."
-            accepted, rejected = reject_by_diff_method(raw_data_epochs)
+            reject_fn = reject_by_diff_method
         elif method == "entropy":
             print "Rejecting epochs using entropy method ..."
-            accepted, rejected = reject_by_entropy(raw_data_epochs)
+            reject_fn = reject_by_entropy
         else:
             raise ValueError('Rejection method "%s" not available.' % method)
         
-        lowpass_data_epochs[:, :, rejected] = nan
+        for condition in range(self.config.num_of_conditions):
+            accepted, rejected = reject_fn(raw_data_epochs[condition, ...])
+        
+            lowpass_data_epochs[condition, :, :, rejected] = nan
+        
         lowpass_data_epochs = ma.masked_array(lowpass_data_epochs, isnan(lowpass_data_epochs))
         
-        
+    def mean_epochs(self):        
+        epochs = self.h5_file.root.lowpass_data_epochs[:]
+        self.mean_epochs = zeros((self.config.num_of_conditions, shape(epochs)[1], len(self.channels_of_interest)))    
+        for c in range(self.config.num_of_conditions):
+            self.mean_epochs[c,:,:] = mean(epochs[c, :, len(self.front_sensors):, :], 2)
+            
     
         
         
@@ -459,7 +458,7 @@ class Channel(object):
                      105, 106, 107, 108, 109, 110, 126, 127, 128, 129, 
                      130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 
                      140, 142, 150, 151]
-
+                     
         right     = [ 10,  12,  13,  14,  15,  16,  17,  18,  19,  20, 
                       21,  22,  23,  24,  25,  26,  27,  28,  29,  30, 
                       31,  32,  53,  54,  55,  56,  57,  59,  60,  61,
