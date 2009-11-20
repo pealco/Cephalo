@@ -3,8 +3,9 @@ name: Ledif
 experimenter: Pedro Alcocer
 design: mmf
 data_directory: ../data/
+output_directory: ../output/
 
-# Parameters
+# Experimental Parameters
 standards:
     162: dlif
     164: delif
@@ -15,6 +16,10 @@ deviants:
     165: dlif
     167: ledif
     169: ldif
+
+# Recording Parameters
+sampling_frequency: 1000
+lowpass_frequency: 20
 
 # Epochs
 epoch_pre:  100
