@@ -201,7 +201,7 @@ class View():
     
     def data_table(self, data_sets):
         print "Outputting table ..."
-        out = "subject condition sample channel value hemisphere\n"
+        out = "subject condition sample channel value hemisphere_x\n"
         for data in data_sets:
             data.mean_epochs = array(data.mean_epochs)
             conditions, samples, channels = shape(data.mean_epochs)
