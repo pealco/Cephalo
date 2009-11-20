@@ -199,8 +199,9 @@ class View():
     
     
     
-    def output_for_r(self, data_sets):
-        out = "subject condition sample channel value\n"
+    def data_table(self, data_sets):
+        print "Outputting table ..."
+        out = "subject condition sample channel value hemisphere\n"
         for data in data_sets:
             data.mean_epochs = array(data.mean_epochs)
             conditions, samples, channels = shape(data.mean_epochs)
@@ -209,7 +210,15 @@ class View():
             for condition in xrange(conditions):
                 for sample in xrange(samples):
                     for channel in xrange(channels):
-                        out += "%s c%d %d ch%d %f\n" % (data.subject, condition+1, sample-self.model.config.epoch_pre, channel+1, data.mean_epochs[condition, sample, channel])
+                        true_channel = data.channels_of_interest[channel]
+                        out += "%s c%d %d ch%d %f %s\n" % (
+                                data.subject, 
+                                condition+1, 
+                                sample-self.model.config.epoch_pre, 
+                                true_channel, 
+                                data.mean_epochs[condition, sample, channel],
+                                get_hemisphere(true_channel, axis='x'),
+                                )
                         
             return out
     
@@ -238,14 +247,14 @@ class View():
         return True
         
         
-#class Sample(IsDescription):
-#    subject   = StringCol(5)
-#    condition = Int32Col()
-#    sample    = Int32Col()
-#    channel   = Int32Col()
-#    amplitude = Float32Col()
-#    hemisphere_x = BoolCol() # Left is True, Right is False
-#    hemisphere_y = BoolCol() # Anterior is True, Posterior is False
+class Sample(tables.IsDescription):
+    subject   = tables.StringCol(5)
+    condition = tables.Int32Col()
+    sample    = tables.Int32Col()
+    channel   = tables.Int32Col()
+    amplitude = tables.Float32Col()
+    hemisphere_x = tables.BoolCol() # Left is True, Right is False
+    hemisphere_y = tables.BoolCol() # Anterior is True, Posterior is False
         
     
 
@@ -260,16 +269,17 @@ class Experiment():
         
         # Views
         self.view = View(self.model)
+
+        output_filename = self.config.name + ".output.txt"
+        data_table = self.view.data_table(self.model.data)
+ 
+        self.save(output_filename, data_table)
         
-        output = self.view.output_for_r(self.model.data)
-        self.save("output.txt", output)
+        #to_table(self.model.data)
         
         #self.view.plot_mmf()
         
-    def save(self, filename, contents):
-        fh = open(filename, 'w')
-        fh.write(contents)
-        fh.close()
+
 
 class Data(object):
     
