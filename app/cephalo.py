@@ -2,6 +2,7 @@ import sys
 import yaml
 import tables
 from lib.megprocess import *
+from lib import filters
 
 class Configuration():
     def __init__(self):
@@ -78,45 +79,41 @@ class Configuration():
             raise ValueError("No subjects specified.")
         else:
             self.subjects = config['subjects']
+            
+        if 'sampling_frequency' in config:
+            self.sampling_frequency = config['sampling_frequency']
+        else:
+            self.sampling_frequency = 1000
+            print "No sampling frequency specified. Setting to 1000Hz."
+            
+        if 'lowpass_frequency' in config:
+            self.lowpass_frequency = config['lowpass_frequency']
+        else:
+            self.lowpass_frequency = 20
+            print "No lowpass frequency specified. Setting to 20Hz."
+            
 
 class Model():
     
     def __init__(self, config):
         self.config = config
     
-    def process(self, subject, channels_of_interest):
+    def process(self, subject):
         
-        self.config.h5_file = self.config.data_directory + subject + ".h5"
+        print "Working on", subject, "..."
+        data = Data(subject, self.config)
         
-        print "Working on ", h5_file, "..."
-        data = Data(self.config.h5_file, self.config.trigger_channels)
+        # Lowpass the data
+        data.lowpass()
+        
+        # Epoch data
+        data.epoch("raw_data")
+        data.epoch("lowpass_data")
+        
+        data.reject_epochs(method="diff")
                 
-        front_sensors = [0, 41, 42, 83, 84, 107, 106, 105, 104, 103, 102, 101, 100, 62, 61, 24, 23]
-        loaded_channels = front_sensors + channels_of_interest
-        
-        if "/lowpass_data" not in data.h5_file:
-            print "Filtering ..."
-            for c in range(157):
-                data.h5_file.root.lowpass_data[c] = lowpass(data.h5_file.root.raw_data[c] * data.h5_file.root.convfactor[c], 1000, 20) 
-        
-        # Raw epochs.
-        epochs = epoch(data.h5_file.root.raw_data, 
-                       data.h5_file.root.triggers, 
-                       loaded_channels, 
-                       config=self.config) 
-        
-        # Filtered epochs.
-        epochs_filtered = epoch(data.h5_file.root.lowpass_data, 
-                                data.h5_file.root.triggers, 
-                                loaded_channels, 
-                                config=self.config) 
-        
-        data.epochs = baseline(epochs.copy(), self.config.epoch_pre)
-        data.epochs_filtered = baseline(epochs_filtered.copy(), self.config.epoch_pre)
-        
-        #save_epochs(data, epochs, epochs_filtered)
-        
-        data.mean_epochs = zeros((self.config.num_of_conditions, shape(epochs)[1], len(channels_of_interest)))    
+        epochs = data.h5_file.root.raw_data_epochs
+        data.mean_epochs = zeros((self.config.num_of_conditions, shape(epochs)[1], len(data.channels_of_interest)))    
         for c in range(self.config.num_of_conditions):
             accepted_epochs = reject_epochs(epochs[c, :, :, :], method="diff")
             rejected_epochs = list(set(range(shape(epochs[c,:,:,:])[2])) - set(accepted_epochs))
@@ -131,11 +128,8 @@ class Model():
         return data
         
     def analyze(self):
-        
-        for subject, channels in self.config.subjects.iteritems():
-            self.process(subject, channels)
-        
-        self.mean_epochs = [self.process(subject, channels) for subject, channels in self.config.subjects.iteritems()]
+
+        self.mean_epochs = [self.process(subject) for subject in self.config.subjects]
         
         #self.allsubjs = [self.process(subject, channels) for subject, channels in self.config.subjects.iteritems()]
         
@@ -252,14 +246,14 @@ class View():
         return True
         
         
-class Sample(IsDescription):
-    subject   = StringCol(5)
-    condition = Int32Col()
-    sample    = Int32Col()
-    channel   = Int32Col()
-    amplitude = Float32Col()
-    hemisphere_x = BoolCol() # Left is True, Right is False
-    hemisphere_y = BoolCol() # Anterior is True, Posterior is False
+#class Sample(IsDescription):
+#    subject   = StringCol(5)
+#    condition = Int32Col()
+#    sample    = Int32Col()
+#    channel   = Int32Col()
+#    amplitude = Float32Col()
+#    hemisphere_x = BoolCol() # Left is True, Right is False
+#    hemisphere_y = BoolCol() # Anterior is True, Posterior is False
         
     
 
@@ -287,29 +281,24 @@ class Experiment():
 
 class Data(object):
     
-    def __init__(self, h5_filename, trigger_channels):
-        self.h5_file = self.load_data(h5_filename, trigger_channels)
+    def __init__(self, subject, config):
+        
+        self.subject = subject
+        self.config = config
+        
+        self.load_data()
+        self.load_triggers()
+        self.channels_of_interest = self.config.subjects[self.subject]
     
-    def load_data(self, h5_filename, trigger_channels):
+    def load_data(self):
         """Loads an H5 data file containing MEG data."""
         
         print "Loading data ..."
+        self.h5_filename = self.config.data_directory + self.subject + ".h5"
+        self.h5_file = tables.openFile(self.h5_filename, mode = "r+")
         
-        self.h5_file = tables.openFile(h5_filename, mode = "r+")
-        raw_data = self.h5_file.root.raw_data
-        
-        # Create CArray for lowpassed data.
-        if "/lowpass_data" not in self.h5_file:
-            lowpass_data = self.h5_file.createCArray(
-                where=self.h5_file.root, 
-                name='lowpass_data', 
-                atom=tables.Float32Atom(), 
-                shape=shape(raw_data),
-                filters=tables.Filters(1)
-                )
-                
-        self.load_triggers()
-        
+        return True
+
     
     def load_triggers(self):
         """Create and fill triggers VLArray. Allows for ragged rows."""
@@ -324,8 +313,138 @@ class Data(object):
                        )
                        
         print "Finding triggers ..."
-        for trigger_set in find_triggers(self.raw_data, self.trigger_channels):
+        for trigger_set in find_triggers(self.h5_file.root.raw_data, self.config.trigger_channels):
             self.triggers.append(trigger_set)
+        
+        return True
+    
+    def lowpass(self):
+        front_sensors = [0, 41, 42, 83, 84, 107, 106, 105, 104, 103, 102, 101, 100, 62, 61, 24, 23]
+        loaded_channels = front_sensors + self.channels_of_interest
+        
+        # Create CArray for lowpassed data.
+        if "/lowpass_data" not in self.h5_file:
+            
+            lowpass_data = self.h5_file.createCArray(
+                where=self.h5_file.root, 
+                name='lowpass_data', 
+                atom=tables.Float32Atom(), 
+                shape=shape(self.h5_file.root.raw_data),
+                filters=tables.Filters(1)
+                )
+        
+            print "Filtering ..."
+            for c in range(157):
+                self.h5_file.root.lowpass_data[c] = filters.lowpass(
+                    self.h5_file.root.raw_data[c] * self.h5_file.root.convfactor[c], 
+                    self.config.sampling_frequency, 
+                    self.config.lowpass_frequency) 
+    
+    
+    def epoch(self, data_array, apply_baseline=True):
+        """Pulls out the epochs from the long data file."""
+        
+        channels = self.channels_of_interest
+        conditions = self.config.num_of_conditions
+        expected_epochs = self.config.expected_epochs
+        stimulus_pre = self.config.epoch_pre
+        stimulus_post = self.config.epoch_post
+        triggers = self.h5_file.root.triggers
+        
+        epoch_length  = stimulus_pre + 1 + stimulus_post # Add 1 for 0 point.
+        
+        epochs = zeros((conditions, epoch_length, len(channels), expected_epochs))
+        
+        for (channel_index, channel) in enumerate(channels):
+            print "Epoching channel %s ..." % channel
+            the_chan = self.h5_file.getNode('/', data_array)[channel][:]
+            for condition in range(conditions): 
+                epoch_indices = range(len(triggers[condition]))
+                random.shuffle(epoch_indices)
+                epoch_indices = epoch_indices[:expected_epochs]
+                
+                for i, t in enumerate(epoch_indices):
+                    epoch_start = triggers[condition][t] - stimulus_pre
+                    epoch_end   = triggers[condition][t] + stimulus_post
+                    the_epoch = the_chan[range(epoch_start, epoch_end + 1)]
+                    epochs[condition, :, channel_index, i] = the_epoch
+        
+        
+        
+        ## This should work in the next version of pytables. Uses fancy indexing.   
+        #for condition in conditions: 
+        #    print "Epoching condition %s ..." % condition
+        #    for t in range(max_epochs):
+        #        epoch_start = triggers[condition][t] - stimulus_pre
+        #        epoch_end   = triggers[condition][t] + stimulus_post
+        #        the_epoch = data[channels][range(epoch_start, epoch_end + 1)]
+        #        epochs[condition, :, :, t] = the_epoch
+        
+        if apply_baseline:
+            epochs = baseline(epochs.copy(), self.config.epoch_pre)
+            
+        self.save_epochs(epochs, data_array)
+        
+    def save_epochs(self, epochs, name):
+        """ This needs cleaning up to avoid repitition."""
+            
+        print "Saving epochs ..."
+        print "Shape:", shape(epochs)
+        
+        #if "/epochs_epochs" in self.h5_file:
+        #    self.h5_file.root.epochs_epochs.remove()
+        #
+        #if "/epochs_filtered" in self.h5_file:
+        #    self.h5_file.root.epochs_filtered.remove()
+        #    
+        #if "/raw_data_epochs" in self.h5_file:
+        #    self.h5_file.root.raw_data_epochs.remove()
+        #    
+        #if "/lowpass_data_epochs" in self.h5_file:
+        #    self.h5_file.root.lowpass_data_epochs.remove()
+        
+        array_name = name + "_epochs"
+        if "/" + array_name not in self.h5_file:
+            self.h5_file.createCArray(
+                where=self.h5_file.root, 
+                name=array_name, 
+                atom=tables.Float32Atom(), 
+                shape=shape(epochs),
+                filters=tables.Filters(1))
+        
+        self.h5_file.getNode('/', array_name)[:] = epochs
+        
+        print "Done saving ..."
+    
+    
+    def reject_epochs(self, method="diff"):
+        """
+        Takes a set of epochs from one condition for all channels.
+        samples x channels x epochs
+
+        Returns a list of good epochs
+        """
+        raw_data_epochs = self.h5_file.root.raw_data_epochs[:]
+        lowpass_data_epochs = self.h5_file.root.lowpass_data_epochs[:]
+        
+        if method == "std":
+            print "Rejecting epochs using standard deviation method ..."
+            accepted, rejected = reject_by_std_method(raw_data_epochs)
+        elif method == "diff":
+            print "Rejecting epochs using difference method ..."
+            accepted, rejected = reject_by_diff_method(raw_data_epochs)
+        elif method == "entropy":
+            print "Rejecting epochs using entropy method ..."
+            accepted, rejected = reject_by_entropy(raw_data_epochs)
+        else:
+            raise ValueError('Rejection method "%s" not available.' % method)
+        
+        lowpass_data_epochs[:, :, rejected] = nan
+        lowpass_data_epochs = ma.masked_array(lowpass_data_epochs, isnan(lowpass_data_epochs))
+        
+        
+    
+        
         
     
 class Channel(object):
