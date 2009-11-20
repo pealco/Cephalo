@@ -121,18 +121,12 @@ class Model():
         # Compute mean epochs
         data.mean_epochs()
                 
-        data.h5_file.close()
+        #data.h5_file.close()
         
         return data
         
     def analyze(self):
-
         self.data = [self.process(subject) for subject in self.config.subjects]
-        
-        #self.allsubjs = [self.process(subject, channels) for subject, channels in self.config.subjects.iteritems()]
-        
-        #self.grand_average = mean(self.allsubjs, axis=0)
-        
 
 class View():
     
@@ -210,7 +204,6 @@ class View():
         for data in data_sets:
             data.mean_epochs = array(data.mean_epochs)
             conditions, samples, channels = shape(data.mean_epochs)
-            print shape(data.mean_epochs)
         
             for condition in xrange(conditions):
                 for sample in xrange(samples):
@@ -227,30 +220,49 @@ class View():
                         
             return out
     
-    def to_table(self, data):
-        table = data.createTable(
-                    where=data.root,
-                    name='epochsTable',
-                    description=Sample
-                    )
+    def print_table(self, data_sets):
+        out = "subject condition sample channel hemisphere_x hemisphere_y amplitude\n"
+        for data in data_sets:
+            table = data.h5_file.root.epochsTable.iterrows()
+            for r in table:
+                out += "%s c%d %d ch%d %s %s %f\n" % \
+                    (r['subject'], r['condition'], r['sample'], 
+                    r['channel'], r['hemisphere_x'], r['hemisphere_y'], 
+                    r['amplitude'])
+        return out
+                
+    
+    def to_table(self, data_sets):
         
-        sample_row = table.row
-        self.model.mean_epochs = array(self.model.mean_epochs)
-        subjects, conditions, samples, channels = shape(self.model.mean_epochs)
-        for subject in xrange(subjects):
+        for data in data_sets:
+            if "/epochsTable" in data.h5_file:
+                data.h5_file.root.epochsTable.remove()
+            
+            table = data.h5_file.createTable(
+                        where='/',
+                        name='epochsTable',
+                        description=Sample,
+                        expectedrows=size(data.mean_epochs)
+                        )
+                        
+            data.mean_epochs = array(data.mean_epochs)
+            conditions, samples, channels = shape(data.mean_epochs)
+        
+            sample_row = table.row
             for condition in xrange(conditions):
                 for sample in xrange(samples):
                     for channel in xrange(channels):
-                        sample_row['subject'] = subject
-                        sample_row['condition'] = condition
+                        sample_row['subject'] = data.subject
+                        sample_row['condition'] = condition+1
                         sample_row['sample'] = sample-self.model.config.epoch_pre
-                        sample_row['channel'] = channel
-                        sample_row['hemisphere_x'] = hemisphere(channel, axis='x')
-                        sample_row['hemisphere_y'] = hemisphere(channel, axis='y')
-                        sample_row['amplitude'] = amplitude
-                        
-        return True
-        
+                        sample_row['channel'] = data.channels_of_interest[channel]
+                        sample_row['hemisphere_x'] = get_hemisphere(channel, axis='x', boolean=True)
+                        sample_row['hemisphere_y'] = get_hemisphere(channel, axis='y', boolean=True)
+                        sample_row['amplitude'] = data.mean_epochs[condition, sample, channel]
+                        sample_row.append()
+            
+            table.flush()
+                                
         
 class Sample(tables.IsDescription):
     subject   = tables.StringCol(5)
@@ -260,8 +272,7 @@ class Sample(tables.IsDescription):
     amplitude = tables.Float32Col()
     hemisphere_x = tables.BoolCol() # Left is True, Right is False
     hemisphere_y = tables.BoolCol() # Anterior is True, Posterior is False
-        
-    
+
 
 class Experiment():
     def __init__(self):
@@ -274,13 +285,15 @@ class Experiment():
         
         # Views
         self.view = View(self.model)
-
-        output_filename = self.config.output_directory + '/' + self.config.name + ".output.txt"
-        data_table = self.view.data_table(self.model.data)
- 
-        self.save(output_filename, data_table)
+        self.view.to_table(self.model.data)
         
-        #to_table(self.model.data)
+        output_filename = self.config.output_directory + '/' + self.config.name + ".output.txt"
+        #data_table = self.view.data_table(self.model.data)
+        data_table = self.view.print_table(self.model.data)
+        
+        save_table(output_filename, data_table)
+        
+        
         
         #self.view.plot_mmf()
         
@@ -356,9 +369,9 @@ class Data(object):
         stimulus_post = self.config.epoch_post
         triggers = self.h5_file.root.triggers
         
-        epoch_length  = stimulus_pre + 1 + stimulus_post # Add 1 for 0 point.
+        self.epoch_length  = stimulus_pre + 1 + stimulus_post # Add 1 for 0 point.
         
-        epochs = zeros((conditions, epoch_length, len(channels), expected_epochs))
+        epochs = zeros((conditions, self.epoch_length, len(channels), expected_epochs))
         
         for (channel_index, channel) in enumerate(channels):
             print "Epoching channel %s ..." % channel
@@ -424,10 +437,8 @@ class Data(object):
     
     def reject_epochs(self, method="diff"):
         """
-        Takes a set of epochs from one condition for all channels.
-        samples x channels x epochs
-
-        Returns a list of good epochs
+        Takes a set of epochs: conditions x samples x channels x epochs and
+        masks out the rejected data points.
         """
         raw_data_epochs = self.h5_file.root.raw_data_epochs[:]
         lowpass_data_epochs = self.h5_file.root.lowpass_data_epochs[:]
@@ -457,10 +468,7 @@ class Data(object):
         for c in range(self.config.num_of_conditions):
             self.mean_epochs[c,:,:] = mean(epochs[c, :, len(self.front_sensors):, :], 2)
             
-    
-        
-        
-    
+
 class Channel(object):
     def __init__(self, channel_number):
         self.channel_number = channel_number
@@ -503,11 +511,6 @@ class Channel(object):
             raise ValueError("Channel %d is not a valid channel." % self.channel_number)
         
 
-    
-        
-        
-            
-    
 if __name__ == "__main__":
     
     exp = Experiment()
