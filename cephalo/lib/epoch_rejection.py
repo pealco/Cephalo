@@ -3,16 +3,16 @@ from numpy import log2
 from utility import *
 from pylab import *
 
-def find_maxdiff(epochs):
-    maxdiff = zeros(shape(epochs)[2])
-    for epoch in arange(shape(epochs)[2]):
-        signal = rms(epochs[:, :, epoch], 1)
-        for t in arange(50, shape(signal)[0] - 50):
-            ampa = mean(signal[t-50:t])
-            ampb = mean(signal[t:t+50])
-            diff = abs(ampb - ampa)
-            if diff > maxdiff[epoch]: 
-                maxdiff[epoch] = diff
+def find_maxdiff(data):
+    samples, channels, epochs = shape(data)
+    window_size = 50
+    maxdiff = zeros(epochs)
+    signal = rms(data, axis=1)
+    for t in xrange(window_size, alen(signal) - window_size):
+        amp_a = mean(signal[t-window_size:t], axis=0)
+        amp_b = mean(signal[t:t+window_size], axis=0)
+        the_diff = abs(amp_b - amp_a)
+        maxdiff = maximum(maxdiff, the_diff)
            
     return maxdiff
 
@@ -40,29 +40,28 @@ def reject_epochs(data, method="std"):
 def reject_by_std_method(data):
     samples, channels, epochs = shape(data)
     
-    rejected_epochs = []
-    accepted_epochs = []
-    
+    data_mean = mean(data)
+    data_std  = std(data, ddof=1)
+    cutoff = data_mean + (2 * data_std)
+    extreme_value_counts = []
     for epoch in xrange(epochs):
-        signal = rms(data[:, :, epoch], 1) # signal: samples
-        deviations = zeros((samples - 200))
-        mean_signal = mean(signal)
-        std_signal  = std(signal, ddof=1)
-        for t in arange(shape(deviations)[0]):
-            deviations[t] = std(signal[t:t+200], ddof=1)
+        signal = rms(data[..., epoch], 1) # signal: samples
+        extreme_value_count = alen(signal[signal > cutoff])
+        extreme_value_counts.append(extreme_value_count)
         
-        deviations = scale(deviations)
-        if max(deviations) >= 3:
-            rejected_epochs += [epoch]
-        else:
-            accepted_epochs += [epoch]
+    extreme_value_count_mean = mean(extreme_value_counts)
+    extreme_value_count_std = std(extreme_value_counts, ddof=1)
+    count_cutoff = extreme_value_count_mean + (3 * extreme_value_count_std)
+    
+    rejected_epochs = where(extreme_value_counts >= count_cutoff)[0]
+    accepted_epochs = where(extreme_value_counts < count_cutoff)[0]
             
-    print  rejected_epochs
+    print rejected_epochs
     return accepted_epochs, rejected_epochs
     
     
 def reject_by_diff_method(data):
-    threshold = 1.25
+    threshold = 2
     samples, channels, epochs = shape(data)
     
     maxdiffs = find_maxdiff(data)
@@ -86,11 +85,13 @@ def entropy(signal, bins=64):
     
 def reject_by_entropy(data):
     samples, channels, epochs = shape(data)
-    entropies = array([entropy(data[:, :-10, epoch]) for epoch in xrange(epochs)])
+    entropies = array([entropy(data[..., epoch]) for epoch in xrange(epochs)])
     
     entropies = scale(entropies)
-    rejected_epochs = [epoch for H, epoch in zip(entropies, range(epochs)) if H > 1.5]
-    accepted_epochs = list(set(range(epochs)) - set(rejected_epochs))
+    rejected_epochs = where(entropies > 2.0)[0]
+    accepted_epochs = where(entropies <= 2.0)[0]
+    #rejected_epochs = [epoch for H, epoch in zip(entropies, range(epochs)) if H > 2.0]
+    #accepted_epochs = list(set(range(epochs)) - set(rejected_epochs))
     
     print rejected_epochs
     return accepted_epochs, rejected_epochs
