@@ -1,7 +1,8 @@
-from numpy import *
+from numpy import shape, mean, std, zeros, where, alen, abs, maximum, \
+histogram, nan, ma, isnan
 from numpy import log2
 from utility import *
-from pylab import *
+#from pylab import *
 
 def find_maxdiff(data):
     samples, channels, epochs = shape(data)

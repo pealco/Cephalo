@@ -60,11 +60,11 @@ def filtfilt(b, a, x):
     return flipud(y[edge-1:-edge+1])
 
 
-def lowpass(data, Fs, Flp):
+def lowpass(data, sampling_frequency, lowpass_frequency):
     """Lowpass Butterworth filter."""
     
-    Fn = Fs/2.0 # Nyquist frequency
+    nyquist_frequency = sampling_frequency/2.0 # Nyquist frequency
     N = 6 # Filter order.
-    b, a = butter(N, Flp/Fn) # Filter design.
+    b, a = butter(N, lowpass_frequency/nyquist_frequency) # Filter design.
     
     return filtfilt(b, a, data)

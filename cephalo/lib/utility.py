@@ -1,15 +1,20 @@
-from numpy import *
+"""Some utility functions."""
 
-def rms_error(a, b):
-    return rms(a - b)
+from numpy import sqrt, mean
+
+def rms_error(array_a, array_b, axis=0):
+    """Computes RMS error."""
+    return rms(array_a - array_b, axis=axis)
 
 def rms(data, axis=0):
+    """Computes root mean square (RMS)."""
     return sqrt(mean(data ** 2, axis))
     
-def scale(a, full=False):
-    a_mean = a.mean()
-    a_std = a.std(ddof=1)
-    a_scaled = (a - a_mean) / a_std
+def scale(_array, full=False):
+    """Scales an array to unit standard devations. (AKA z-score.)"""
+    a_mean = _array.mean()
+    a_std = _array.std(ddof=1)
+    a_scaled = (_array - a_mean) / a_std
     
     if full:
         return a_scaled, a_mean, a_std
@@ -17,11 +22,14 @@ def scale(a, full=False):
         return a_scaled
 
 def save_table(filename, contents):
-    fh = open(filename, 'w')
-    fh.write(contents)
-    fh.close()
+    """Saves a table to file."""
+    _file = open(filename, 'w')
+    _file.write(contents)
+    _file.close()
 
 def get_hemisphere(channel, axis, boolean=False):
+    """Determines in which hemisphere (both left/right, anterior/posterior)
+    a channel is located."""
     
     left      = [ 0,  1,   2,   3,   4,   5,   6,   7,   8,   9,  11, 
                   33,  34,  35,  36,  37,  38,  39,  40,  41,  42,  
