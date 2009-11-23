@@ -9,15 +9,19 @@ class Configuration():
         self.get_config()
     
     def get_config(self):
+        """Gets the the configuration file. Asks for one if one is not specified
+        at the command line."""
         try:
             config_file = sys.argv[1]
         except IndexError:
-            config_file = raw_input("No configuration file specified. Specify one now: ")
+            config_file = raw_input(
+                "No configuration file specified. Specify one now: ")
         
         self.parse_config(config_file)
         
     
     def parse_config(self, config_file):
+        """Parses the configuration file. Makes many class attributes."""
         stream = file(config_file, 'r')
         config = yaml.load(stream)
     
@@ -74,10 +78,12 @@ class Configuration():
         # Load standard and deviants lists.
         if self.design.lower() == "mmf" or self.design.lower() == "mmn":
             if 'standards' not in config or 'deviants' not in config:
-                raise ValueError("This is an MMF design and no standards or deviants are specified.")
+                raise ValueError("This is an MMF design and no standards or \
+                deviants are specified.")
             self.standards = config['standards']
             self.deviants = config['deviants']
-            self.trigger_channels = sorted(self.standards.keys() + self.deviants.keys())
+            self.trigger_channels = sorted(self.standards.keys() + 
+                self.deviants.keys())
             self.num_of_conditions = len(self.trigger_channels)
     
         if 'subjects' not in config or config['subjects'] == {}:
@@ -99,11 +105,13 @@ class Configuration():
             
 
 class Model():
+    """Controls the flow of data."""
     
     def __init__(self, config):
         self.config = config
     
     def process(self, subject):
+        """Implements the various steps of the processing chain."""
         
         print "Working on", subject, "..."
         data = Data(subject, self.config)
@@ -126,6 +134,7 @@ class Model():
         return data
         
     def analyze(self):
+        """Loops through subjects to process them."""
         self.data = [self.process(subject) for subject in self.config.subjects]
 
 class View():
@@ -134,6 +143,7 @@ class View():
         self.model = model
     
     def plot_mmf(self):
+        """Plots the MMF and difference waves."""
         
         for standard in self.model.config.standards:
             pass
@@ -199,6 +209,8 @@ class View():
     
     
     def data_table(self, data_sets):
+        """Outputs a text table."""
+        
         print "Outputting table ..."
         out = "subject condition sample channel value hemisphere_x\n"
         for data in data_sets:
@@ -221,28 +233,32 @@ class View():
             return out
     
     def print_table(self, data_sets):
-        out = "subject condition sample channel hemisphere_x hemisphere_y amplitude\n"
+        """Writes a table to disk."""
+        
+        out = "subject condition sample channel hemisphere_x hemisphere_y \
+            amplitude\n"
         for data in data_sets:
             table = data.h5_file.root.epochsTable.iterrows()
-            for r in table:
-                if r['hemisphere_x']:
+            for row in table:
+                if row['hemisphere_x']:
                     hemisphere_x = "right"
                 else:
                     hemisphere_x = "left"
                     
-                if r['hemisphere_y']:
+                if row['hemisphere_y']:
                     hemisphere_y = "posterior"
                 else:
                     hemisphere_y = "anterior"
                 
                 out += "%s c%d %d ch%d %s %s %f\n" % \
-                    (r['subject'], r['condition'], r['sample'], 
-                    r['channel'], hemisphere_x, hemisphere_y, 
-                    r['amplitude'])
+                    (row['subject'], row['condition'], row['sample'], 
+                    row['channel'], hemisphere_x, hemisphere_y, 
+                    row['amplitude'])
         return out
                 
     
     def to_table(self, data_sets):
+        """Creates a pytables Table."""
         
         for data in data_sets:
             if "/epochsTable" in data.h5_file:
@@ -267,8 +283,10 @@ class View():
                         sample_row['condition'] = condition+1
                         sample_row['sample'] = sample-self.model.config.epoch_pre
                         sample_row['channel'] = data.channels_of_interest[channel]
-                        sample_row['hemisphere_x'] = get_hemisphere(channel, axis='x', boolean=True)
-                        sample_row['hemisphere_y'] = get_hemisphere(channel, axis='y', boolean=True)
+                        sample_row['hemisphere_x'] = get_hemisphere(
+                            channel, axis='x', boolean=True)
+                        sample_row['hemisphere_y'] = get_hemisphere(
+                            channel, axis='y', boolean=True)
                         sample_row['amplitude'] = data.mean_epochs[condition, sample, channel]
                         sample_row.append()
             
@@ -298,7 +316,8 @@ class Experiment():
         self.view = View(self.model)
         self.view.to_table(self.model.data)
         
-        output_filename = self.config.output_directory + '/' + self.config.name + ".output.txt"
+        output_filename = self.config.output_directory + '/' + \
+            self.config.name + ".output.txt"
         #data_table = self.view.data_table(self.model.data)
         data_table = self.view.print_table(self.model.data)
         
@@ -348,6 +367,7 @@ class Data(object):
         return True
     
     def lowpass(self):
+        """Lowpass filters the data."""
 
         # Create CArray for lowpassed data.
         if "/lowpass_data" not in self.h5_file:
@@ -370,7 +390,8 @@ class Data(object):
     
     def epoch(self, data_array, apply_baseline=True):
         """Pulls out the epochs from the long data file."""
-        self.front_sensors = [0, 41, 42, 83, 84, 107, 106, 105, 104, 103, 102, 101, 100, 62, 61, 24, 23]
+        self.front_sensors = [0, 41, 42, 83, 84, 107, 106, 105, 
+                                104, 103, 102, 101, 100, 62, 61, 24, 23]
         self.loaded_channels = self.front_sensors + self.channels_of_interest
         
         channels = self.loaded_channels
@@ -380,7 +401,7 @@ class Data(object):
         stimulus_post = self.config.epoch_post
         triggers = self.h5_file.root.triggers
         
-        self.epoch_length  = stimulus_pre + 1 + stimulus_post # Add 1 for 0 point.
+        self.epoch_length  = stimulus_pre + 1 + stimulus_post # Include 0 point.
         
         epochs = zeros((conditions, self.epoch_length, len(channels), expected_epochs))
         
@@ -472,11 +493,13 @@ class Data(object):
         
         lowpass_data_epochs = ma.masked_array(lowpass_data_epochs, isnan(lowpass_data_epochs))
         
-    def mean_epochs(self):        
+    def mean_epochs(self):
+        """Computes mean epochs."""
+        
         epochs = self.h5_file.root.lowpass_data_epochs[:]
         self.mean_epochs = zeros((self.config.num_of_conditions, shape(epochs)[1], len(self.channels_of_interest)))    
         for c in range(self.config.num_of_conditions):
-            self.mean_epochs[c,:,:] = mean(epochs[c, :, len(self.front_sensors):, :], 2)
+            self.mean_epochs[c, :, :] = mean(epochs[c, :, len(self.front_sensors):, :], 2)
             
 
 class Channel(object):
