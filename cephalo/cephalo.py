@@ -225,9 +225,19 @@ class View():
         for data in data_sets:
             table = data.h5_file.root.epochsTable.iterrows()
             for r in table:
+                if r['hemisphere_x']:
+                    hemisphere_x = "right"
+                else:
+                    hemisphere_x = "left"
+                    
+                if r['hemisphere_y']:
+                    hemisphere_y = "posterior"
+                else:
+                    hemisphere_y = "anterior"
+                
                 out += "%s c%d %d ch%d %s %s %f\n" % \
                     (r['subject'], r['condition'], r['sample'], 
-                    r['channel'], r['hemisphere_x'], r['hemisphere_y'], 
+                    r['channel'], hemisphere_x, hemisphere_y, 
                     r['amplitude'])
         return out
                 
@@ -242,7 +252,8 @@ class View():
                         where='/',
                         name='epochsTable',
                         description=Sample,
-                        expectedrows=size(data.mean_epochs)
+                        expectedrows=size(data.mean_epochs),
+                        filters=tables.Filters(2)
                         )
                         
             data.mean_epochs = array(data.mean_epochs)
@@ -265,10 +276,10 @@ class View():
                                 
         
 class Sample(tables.IsDescription):
-    subject   = tables.StringCol(5)
-    condition = tables.Int32Col()
-    sample    = tables.Int32Col()
-    channel   = tables.Int32Col()
+    subject   = tables.StringCol(16)
+    condition = tables.UInt8Col()
+    sample    = tables.Int16Col()
+    channel   = tables.UInt8Col()
     amplitude = tables.Float32Col()
     hemisphere_x = tables.BoolCol() # Left is True, Right is False
     hemisphere_y = tables.BoolCol() # Anterior is True, Posterior is False
@@ -327,7 +338,7 @@ class Data(object):
                        where=self.h5_file.root, 
                        name='triggers',
                        atom=tables.Int32Atom(),
-                       filters=tables.Filters(1)
+                       filters=tables.Filters(2)
                        )
                        
         print "Finding triggers ..."
@@ -346,7 +357,7 @@ class Data(object):
                 name='lowpass_data', 
                 atom=tables.Float32Atom(), 
                 shape=shape(self.h5_file.root.raw_data),
-                filters=tables.Filters(1)
+                filters=tables.Filters(2)
                 )
         
             print "Filtering ..."
@@ -428,14 +439,13 @@ class Data(object):
                 name=array_name, 
                 atom=tables.Float32Atom(), 
                 shape=shape(epochs),
-                filters=tables.Filters(1))
+                filters=tables.Filters(2))
         
         self.h5_file.getNode('/', array_name)[:] = epochs
         
         print "Done saving ..."
     
-    
-    def reject_epochs(self, method="diff"):
+    def reject_epochs(self, method="std"):
         """
         Takes a set of epochs: conditions x samples x channels x epochs and
         masks out the rejected data points.
