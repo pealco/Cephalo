@@ -1,8 +1,12 @@
 import sys
 import yaml
 import tables
-from lib.megprocess import *
 from lib import filters
+from numpy import zeros, mean, array, random, shape, size, nan, ma, isnan
+from lib.megprocess import baseline, find_triggers
+from lib.epoch_rejection import reject_by_std_method, reject_by_diff_method, \
+    reject_by_entropy
+from lib.utility import get_hemisphere, save_table
 
 class Configuration():
     def __init__(self):
@@ -68,7 +72,6 @@ class Configuration():
             self.expected_epochs = config['expected_epochs']
     
         # Set default experiment design.
-        # TODO: This should be removed once more experiment designs are implemented.
         if 'design' in config:
             self.design = config['design']
         else:
@@ -138,73 +141,74 @@ class Model():
         self.data = [self.process(subject) for subject in self.config.subjects]
 
 class View():
+    """Controls data output."""
     
     def __init__(self, model):
         self.model = model
     
-    def plot_mmf(self):
-        """Plots the MMF and difference waves."""
-        
-        for standard in self.model.config.standards:
-            pass
-        
-        for deviant in self.model.config.deviants:
-            pass
-        
-        grand_average = self.model.grand_average
-        
-        standard_4 = grand_average[0, :]  # dlif  standard
-        deviant_3  = grand_average[1, :]  # delif deviant
-        standard_3 = grand_average[2, :]  # delif standard
-        deviant_4  = grand_average[3, :]  # dlif  deviant
-        standard_2 = grand_average[4, :]  # ldif  standard
-        deviant_1  = grand_average[5, :]  # ledif deviant
-        standard_1 = grand_average[6, :]  # ledif standard
-        deviant_2  = grand_average[7, :]  # ldif  deviant
-        
-        
-        difference_wave_1 = difference_wave(standard_1, deviant_1) # ledif
-        difference_wave_2 = difference_wave(standard_2, deviant_2) # ldif 
-        difference_wave_3 = difference_wave(standard_3, deviant_3) # delif
-        difference_wave_4 = difference_wave(standard_4, deviant_4) # dlif
-        
-        figure()
-        
-        subplot(211)
-        title("ledif")
-        plot(standard_1, label="standard")
-        plot(deviant_1, label="deviant")
-        #xlim(300, 400)
-        #ylim(0, 70)
-        legend()
-        
-        subplot(212)
-        title("ldif")
-        plot(standard_2, label="standard")
-        plot(deviant_2, label="deviant")
-        #xlim(300, 400)
-        #ylim(0, 70)
-        legend()
-        
-        figure()
-        
-        subplot(211)
-        title("delif")
-        plot(standard_3, label="standard")
-        plot(deviant_3, label="deviant")
-        #xlim(300, 400)
-        #ylim(0, 70)
-        legend()
-        
-        subplot(212)
-        title("dlif")
-        plot(standard_4, label="standard")
-        plot(deviant_4, label="deviant")
-        #xlim(300, 400)
-        #ylim(0, 70)
-        legend()
-        
-        show()
+    #def plot_mmf(self):
+    #    """Plots the MMF and difference waves."""
+    #    
+    #    for standard in self.model.config.standards:
+    #        pass
+    #    
+    #    for deviant in self.model.config.deviants:
+    #        pass
+    #    
+    #    grand_average = self.model.grand_average
+    #    
+    #    standard_4 = grand_average[0, :]  # dlif  standard
+    #    deviant_3  = grand_average[1, :]  # delif deviant
+    #    standard_3 = grand_average[2, :]  # delif standard
+    #    deviant_4  = grand_average[3, :]  # dlif  deviant
+    #    standard_2 = grand_average[4, :]  # ldif  standard
+    #    deviant_1  = grand_average[5, :]  # ledif deviant
+    #    standard_1 = grand_average[6, :]  # ledif standard
+    #    deviant_2  = grand_average[7, :]  # ldif  deviant
+    #    
+    #    
+    #    difference_wave_1 = difference_wave(standard_1, deviant_1) # ledif
+    #    difference_wave_2 = difference_wave(standard_2, deviant_2) # ldif 
+    #    difference_wave_3 = difference_wave(standard_3, deviant_3) # delif
+    #    difference_wave_4 = difference_wave(standard_4, deviant_4) # dlif
+    #    
+    #    figure()
+    #    
+    #    subplot(211)
+    #    title("ledif")
+    #    plot(standard_1, label="standard")
+    #    plot(deviant_1, label="deviant")
+    #    #xlim(300, 400)
+    #    #ylim(0, 70)
+    #    legend()
+    #    
+    #    subplot(212)
+    #    title("ldif")
+    #    plot(standard_2, label="standard")
+    #    plot(deviant_2, label="deviant")
+    #    #xlim(300, 400)
+    #    #ylim(0, 70)
+    #    legend()
+    #    
+    #    figure()
+    #    
+    #    subplot(211)
+    #    title("delif")
+    #    plot(standard_3, label="standard")
+    #    plot(deviant_3, label="deviant")
+    #    #xlim(300, 400)
+    #    #ylim(0, 70)
+    #    legend()
+    #    
+    #    subplot(212)
+    #    title("dlif")
+    #    plot(standard_4, label="standard")
+    #    plot(deviant_4, label="deviant")
+    #    #xlim(300, 400)
+    #    #ylim(0, 70)
+    #    legend()
+    #    
+    #    show()
     
     
     
@@ -281,13 +285,16 @@ class View():
                     for channel in xrange(channels):
                         sample_row['subject'] = data.subject
                         sample_row['condition'] = condition+1
-                        sample_row['sample'] = sample-self.model.config.epoch_pre
-                        sample_row['channel'] = data.channels_of_interest[channel]
-                        sample_row['hemisphere_x'] = get_hemisphere(
-                            channel, axis='x', boolean=True)
-                        sample_row['hemisphere_y'] = get_hemisphere(
-                            channel, axis='y', boolean=True)
-                        sample_row['amplitude'] = data.mean_epochs[condition, sample, channel]
+                        sample_row['sample'] = \
+                            sample-self.model.config.epoch_pre
+                        sample_row['channel'] = \
+                            data.channels_of_interest[channel]
+                        sample_row['hemisphere_x'] = \
+                            get_hemisphere(channel, axis='x', boolean=True)
+                        sample_row['hemisphere_y'] = \
+                            get_hemisphere(channel, axis='y', boolean=True)
+                        sample_row['amplitude'] = \
+                            data.mean_epochs[condition, sample, channel]
                         sample_row.append()
             
             table.flush()
@@ -361,9 +368,12 @@ class Data(object):
                        )
                        
         print "Finding triggers ..."
-        for trigger_set in find_triggers(self.h5_file.root.raw_data, self.config.trigger_channels):
+        raw_data = self.h5_file.root.raw_data
+        trigger_channels = self.config.trigger_channels
+        for trigger_set in find_triggers(raw_data, trigger_channels):
             self.triggers.append(trigger_set)
         
+        self.triggers.flush()
         return True
     
     def lowpass(self):
@@ -381,11 +391,12 @@ class Data(object):
                 )
         
             print "Filtering ..."
-            for c in range(157):
-                self.h5_file.root.lowpass_data[c] = filters.lowpass(
-                    self.h5_file.root.raw_data[c] * self.h5_file.root.convfactor[c], 
-                    self.config.sampling_frequency, 
-                    self.config.lowpass_frequency) 
+            for channel in range(157):
+                self.h5_file.root.lowpass_data[channel] = \
+                    filters.lowpass(self.h5_file.root.raw_data[channel] * \
+                    self.h5_file.root.convfactor[channel], 
+                    sampling_frequency=self.config.sampling_frequency, 
+                    lowpass_frequency=self.config.lowpass_frequency) 
     
     
     def epoch(self, data_array, apply_baseline=True):
@@ -403,7 +414,8 @@ class Data(object):
         
         self.epoch_length  = stimulus_pre + 1 + stimulus_post # Include 0 point.
         
-        epochs = zeros((conditions, self.epoch_length, len(channels), expected_epochs))
+        epochs = zeros((conditions, self.epoch_length, len(channels), \
+            expected_epochs))
         
         for (channel_index, channel) in enumerate(channels):
             print "Epoching channel %s ..." % channel
@@ -413,15 +425,16 @@ class Data(object):
                 random.shuffle(epoch_indices)
                 epoch_indices = epoch_indices[:expected_epochs]
                 
-                for i, t in enumerate(epoch_indices):
-                    epoch_start = triggers[condition][t] - stimulus_pre
-                    epoch_end   = triggers[condition][t] + stimulus_post
+                for index, time in enumerate(epoch_indices):
+                    epoch_start = triggers[condition][time] - stimulus_pre
+                    epoch_end   = triggers[condition][time] + stimulus_post
                     the_epoch = the_chan[range(epoch_start, epoch_end + 1)]
-                    epochs[condition, :, channel_index, i] = the_epoch
+                    epochs[condition, :, channel_index, index] = the_epoch
         
         
         
-        ## This should work in the next version of pytables. Uses fancy indexing.   
+        ## This should work in the next version of pytables. 
+        ## Uses fancy indexing.   
         #for condition in conditions: 
         #    print "Epoching condition %s ..." % condition
         #    for t in range(max_epochs):
@@ -491,60 +504,65 @@ class Data(object):
         
             lowpass_data_epochs[condition, :, :, rejected] = nan
         
-        lowpass_data_epochs = ma.masked_array(lowpass_data_epochs, isnan(lowpass_data_epochs))
+        lowpass_data_epochs = ma.masked_array(lowpass_data_epochs, \
+            isnan(lowpass_data_epochs))
         
     def mean_epochs(self):
         """Computes mean epochs."""
         
         epochs = self.h5_file.root.lowpass_data_epochs[:]
-        self.mean_epochs = zeros((self.config.num_of_conditions, shape(epochs)[1], len(self.channels_of_interest)))    
-        for c in range(self.config.num_of_conditions):
-            self.mean_epochs[c, :, :] = mean(epochs[c, :, len(self.front_sensors):, :], 2)
+        self.mean_epochs = zeros((self.config.num_of_conditions, \
+            shape(epochs)[1], len(self.channels_of_interest)))    
+        for condition in range(self.config.num_of_conditions):
+            self.mean_epochs[condition, :, :] = \
+                mean(epochs[condition, :, len(self.front_sensors):, :], 2)
             
 
-class Channel(object):
-    def __init__(self, channel_number):
-        self.channel_number = channel_number
-        
-        left      = [  1,   2,   3,   4,   5,   6,   7,   8,   9,  11, 
-                      33,  34,  35,  36,  37,  38,  39,  40,  41,  42,  
-                      43,  44,  45,  46,  47,  48,  49,  50,  51,  52,
-                      58,  64,  67,  71,  73,  74,  75,  76,  77,  78,
-                      79,  80,  82,  83,  84,  85,  87,  88,  90,  91,  
-                     105, 106, 107, 108, 109, 110, 126, 127, 128, 129, 
-                     130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 
-                     140, 142, 150, 151]
-                     
-        right     = [ 10,  12,  13,  14,  15,  16,  17,  18,  19,  20, 
-                      21,  22,  23,  24,  25,  26,  27,  28,  29,  30, 
-                      31,  32,  53,  54,  55,  56,  57,  59,  60,  61,
-                      62,  63,  65,  66,  68,  69,  70,  72,  81,  86,
-                      89,  92,  93,  94,  95,  96,  97,  98,  99, 100, 
-                     101, 102, 103, 104, 111, 112, 113, 114, 115, 116, 
-                     117, 118, 119, 120, 121, 122, 123, 124, 125, 141, 
-                     143, 144, 145, 146, 147, 148, 149, 152, 153, 154, 
-                     155, 156]
-        
-        anterior  = [ ]
-        
-        posterior = [ ]
-        
-        if self.channel_number in left:
-            self.hemisphere_x = "left"
-        elif self.channel_number in right:
-            self.hemisphere_x = "right"
-        else:
-            raise ValueError("Channel %d is not a valid channel." % self.channel_number)
-            
-        if self.channel_number in anterior:
-            self.hemisphere_y = "anterior"
-        elif self.channel_number in posterior:
-            self.hemisphere_y = "posterior"
-        else:
-            raise ValueError("Channel %d is not a valid channel." % self.channel_number)
+#class Channel(object):
+#    def __init__(self, channel_number):
+#        self.channel_number = channel_number
+#        
+#        left      = [  1,   2,   3,   4,   5,   6,   7,   8,   9,  11, 
+#                      33,  34,  35,  36,  37,  38,  39,  40,  41,  42,  
+#                      43,  44,  45,  46,  47,  48,  49,  50,  51,  52,
+#                      58,  64,  67,  71,  73,  74,  75,  76,  77,  78,
+#                      79,  80,  82,  83,  84,  85,  87,  88,  90,  91,  
+#                     105, 106, 107, 108, 109, 110, 126, 127, 128, 129, 
+#                     130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 
+#                     140, 142, 150, 151]
+#                     
+#        right     = [ 10,  12,  13,  14,  15,  16,  17,  18,  19,  20, 
+#                      21,  22,  23,  24,  25,  26,  27,  28,  29,  30, 
+#                      31,  32,  53,  54,  55,  56,  57,  59,  60,  61,
+#                      62,  63,  65,  66,  68,  69,  70,  72,  81,  86,
+#                      89,  92,  93,  94,  95,  96,  97,  98,  99, 100, 
+#                     101, 102, 103, 104, 111, 112, 113, 114, 115, 116, 
+#                     117, 118, 119, 120, 121, 122, 123, 124, 125, 141, 
+#                     143, 144, 145, 146, 147, 148, 149, 152, 153, 154, 
+#                     155, 156]
+#        
+#        anterior  = [ ]
+#        
+#        posterior = [ ]
+#        
+#        if self.channel_number in left:
+#            self.hemisphere_x = "left"
+#        elif self.channel_number in right:
+#            self.hemisphere_x = "right"
+#        else:
+#            raise ValueError("Channel %d is not a valid channel." % \
+#                self.channel_number)
+#            
+#        if self.channel_number in anterior:
+#            self.hemisphere_y = "anterior"
+#        elif self.channel_number in posterior:
+#            self.hemisphere_y = "posterior"
+#        else:
+#            raise ValueError("Channel %d is not a valid channel." % \
+#                #self.channel_number)
         
 
 if __name__ == "__main__":
     
-    exp = Experiment()
+    Experiment()
 
