@@ -1,7 +1,10 @@
 from numpy import array, flatnonzero, arange, shape, zeros, ones
 from struct import unpack, calcsize
-import psyco
-psyco.full()
+try:
+    import psyco
+    psyco.full()
+except:
+    pass
 
 class SquidData():
     """A class for reading MEG 160 .sqd files."""
