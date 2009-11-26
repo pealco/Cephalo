@@ -1,6 +1,6 @@
 from numpy import *
 import tables
-from pysqd import SquidData
+from sqdreader import SquidData
 import sys
 import os.path
 
