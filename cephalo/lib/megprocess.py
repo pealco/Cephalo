@@ -10,19 +10,20 @@ def find_triggers(data, trigger_channels):
     """Locates triggers in the trigger channels. Returns a list of arrays."""
     
     threshold = (25-1) / float(5 * 2)
-    triggers = [nonzero(diff(data[trigger_channel, :]) > threshold)[0] 
-        for trigger_channel in trigger_channels]
+    triggers = []
+    for trigger_channel in trigger_channels:
+        triggers.append(nonzero(diff(data[trigger_channel, :]) > threshold)[0])
         
-    for i in range(len(triggers)):
-        triggers[i] = triggers[i][triggers[i] > 100]
-        trigger_pairs = zip(triggers[i], triggers[i][1:])
-        triggers[i] = [trigger_pair[0] for trigger_pair in trigger_pairs 
+    for index in range(len(triggers)):
+        triggers[index] = triggers[index][triggers[index] > 100]
+        trigger_pairs = zip(triggers[index], triggers[index][1:])
+        triggers[index] = [trigger_pair[0] for trigger_pair in trigger_pairs 
             if diff(trigger_pair) > 100]
     
     return triggers
 
 def baseline(epochs, epochs_pre):
-    """Performs baslining. Averages the epoch before the stimulus and subtracts
+    """Performs baselining. Averages the epoch before the stimulus and subtracts
     the mean from the whole epoch."""
     print "Baselining ..."
     for condition in arange(shape(epochs)[0]):
