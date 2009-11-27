@@ -4,18 +4,18 @@ from numpy import log2
 from utility import *
 #from pylab import *
 
-def find_maxdiff(data):
+def find_maximum_differences(data):
     samples, channels, epochs = shape(data)
     window_size = 50
-    maxdiff = zeros(epochs)
+    maximum_difference = zeros(epochs)
     signal = rms(data, axis=1)
     for t in xrange(window_size, alen(signal) - window_size):
-        amp_a = mean(signal[t-window_size:t], axis=0)
-        amp_b = mean(signal[t:t+window_size], axis=0)
-        the_diff = abs(amp_b - amp_a)
-        maxdiff = maximum(maxdiff, the_diff)
+        window_mean_a = mean(signal[t-window_size:t], axis=0)
+        window_mean_b = mean(signal[t:t+window_size], axis=0)
+        window_mean_difference = abs(window_mean_b - window_mean_a)
+        maximum_difference = maximum(maximum_difference, window_mean_difference)
            
-    return maxdiff
+    return maximum_difference
 
 def reject_epochs(data, method="std"):
     """
@@ -65,12 +65,12 @@ def reject_by_diff_method(data):
     threshold = 2
     samples, channels, epochs = shape(data)
     
-    maxdiffs = find_maxdiff(data)
+    maximum_differences = find_maximum_differences(data)
     
-    maxdiffs = scale(maxdiffs)
+    maximum_differences = scale(maximum_differences)
     
-    rejected_epochs = where(maxdiffs >= threshold)[0]
-    accepted_epochs = where(maxdiffs < threshold)[0]
+    rejected_epochs = where(maximum_differences >= threshold)[0]
+    accepted_epochs = where(maximum_differences < threshold)[0]
     
     print rejected_epochs
     return accepted_epochs, rejected_epochs
