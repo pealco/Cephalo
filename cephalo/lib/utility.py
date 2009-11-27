@@ -1,6 +1,7 @@
 """Some utility functions."""
 
 from numpy import sqrt, mean
+import os
 
 def rms_error(array_a, array_b, axis=0):
     """Computes RMS error."""
@@ -23,6 +24,12 @@ def scale(_array, full=False):
 
 def save_table(filename, contents):
     """Saves a table to file."""
+    
+    filename = os.path.normpath(filename)
+    dirname = os.path.dirname(filename)
+    if not os.path.isdir(dirname):
+        os.mkdir(dirname)
+        
     _file = open(filename, 'w')
     _file.write(contents)
     _file.close()
