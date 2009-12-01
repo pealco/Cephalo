@@ -26,5 +26,4 @@ setup(
     packages        = ["cephalo_tools"],
     package_dir = {'cephalo_tools':'src/cephalo_tools'},
     install_requires=['pyyaml']
-    #test_suite='pybrain.tests.runtests.make_test_suite',
 )
