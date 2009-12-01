@@ -3,7 +3,7 @@ Cephalo
 
 By Pedro Alcocer.
 
-Cephalo is software for the fast and easy processing of MEG data. Cephalo takes a lot of the getting MEG data from its raw form to a state that is useful for analysis.
+Cephalo is software for the fast and easy processing of MEG data. Cephalo eliminates a lot of the grudge work out of getting MEG data from its raw form to a state that is useful for analysis.
 
 Tools
 -----
