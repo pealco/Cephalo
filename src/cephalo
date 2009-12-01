@@ -390,6 +390,12 @@ class Data(object):
         print "Saving epochs ..."
         print "Shape:", shape(epochs)
         
+        if "/raw_data_epochs" in self.h5_file:
+            self.h5_file.root.raw_data_epochs.remove()
+        
+        if "/lowpass_data_epochs" in self.h5_file:
+            self.h5_file.root.lowpass_data_epochs.remove()
+        
         array_name = name + "_epochs"
         if "/" + array_name not in self.h5_file:
             self.h5_file.createCArray(
