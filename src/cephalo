@@ -28,7 +28,7 @@ class Configuration():
     
     def parse_config(self, config_file):
         """Parses the configuration file. Makes many class attributes."""
-        stream = file(config_file, 'r')
+        stream = open(config_file, 'r')
         config = yaml.load(stream)
     
         # Set default experiment name.
@@ -73,23 +73,14 @@ class Configuration():
         else:
             self.expected_epochs = config['expected_epochs']
     
-        # Set default experiment design.
-        if 'design' in config:
-            self.design = config['design']
-        else:
-            self.design = "mmf"
-            print "No design specified. Assuming this is an MMF design."
-    
-        # Load standard and deviants lists.
-        if self.design.lower() == "mmf" or self.design.lower() == "mmn":
-            if 'standards' not in config or 'deviants' not in config:
-                raise ValueError("This is an MMF design and no standards or \
-                deviants are specified.")
-            self.standards = config['standards']
-            self.deviants = config['deviants']
-            self.trigger_channels = sorted(self.standards.keys() + 
-                self.deviants.keys())
-            self.num_of_conditions = len(self.trigger_channels)
+        # Load condition lists.
+        
+        if 'conditions' not in config:
+            raise ValueError("No conditions are specified.")
+        
+        self.conditions = config['conditions']
+        self.trigger_channels = sorted(self.conditions.keys())
+        self.num_of_conditions = len(self.trigger_channels)
     
         if 'subjects' not in config or config['subjects'] == {}:
             raise ValueError("No subjects specified.")
@@ -175,8 +166,11 @@ class View():
     def print_table(self, data_sets):
         """Writes a table to disk."""
         
-        out = "subject condition sample channel hemisphere_x hemisphere_y \
-            amplitude\n"
+        number_of_factors = len(self.model.config.conditions.items()[0][1])
+        out = "subject condition sample channel hemisphere_x hemisphere_y "
+        out += ' '.join(["factor" + str(f) for f in range(number_of_factors)])
+        out += " amplitude\n"
+            
         for data in data_sets:
             table = data.h5_file.root.epochsTable.iterrows()
             for row in table:
@@ -190,9 +184,14 @@ class View():
                 else:
                     hemisphere_y = "anterior"
                 
-                out += "%s c%d %d ch%d %s %s %f\n" % \
-                    (row['subject'], row['condition'], row['sample'], 
-                    row['channel'], hemisphere_x, hemisphere_y, 
+                out += "%s c%d %d ch%d %s %s %s %f\n" % \
+                    (row['subject'], 
+                    row['condition'], 
+                    row['sample'], 
+                    row['channel'], 
+                    hemisphere_x, 
+                    hemisphere_y,  
+                    ' '.join(self.model.config.conditions[self.model.config.trigger_channels[row['condition']-1]]),
                     row['amplitude'])
         return out
                 
@@ -390,20 +389,17 @@ class Data(object):
         print "Saving epochs ..."
         print "Shape:", shape(epochs)
         
-        if "/raw_data_epochs" in self.h5_file:
-            self.h5_file.root.raw_data_epochs.remove()
-        
-        if "/lowpass_data_epochs" in self.h5_file:
-            self.h5_file.root.lowpass_data_epochs.remove()
-        
         array_name = name + "_epochs"
-        if "/" + array_name not in self.h5_file:
-            self.h5_file.createCArray(
-                where=self.h5_file.root, 
-                name=array_name, 
-                atom=tables.Float32Atom(), 
-                shape=shape(epochs),
-                filters=tables.Filters(2))
+        if "/" + array_name in self.h5_file:
+            self.h5_file.getNode('/', array_name).remove()
+        
+        print array_name
+        self.h5_file.createCArray(
+            where=self.h5_file.root, 
+            name=array_name, 
+            atom=tables.Float32Atom(), 
+            shape=shape(epochs),
+            filters=tables.Filters(2))
         
         self.h5_file.getNode('/', array_name)[:] = epochs
         
