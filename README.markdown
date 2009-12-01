@@ -15,9 +15,9 @@ Requirements
 ------------
 
 * Enthought Python Distribution v5.1.1 or greater
-    * http://www.enthought.com/products/edudownload.php
+    * `http://www.enthought.com/products/edudownload.php`
 * PyYAML 3.0 or greater
-    * http://pyyaml.org/
+    * `http://pyyaml.org/`
     
 Install
 -------
@@ -28,9 +28,9 @@ Install
 License
 -------
 
-This software is distributed under the terms of the GNU General Public License. See the COPYING file for more information.
+This software is distributed under the terms of the GNU General Public License. See the `COPYING` file for more information.
 
 Website
 -------
 
-http://pealco.net/cephalo
+`http://pealco.net/cephalo`
