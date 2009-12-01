@@ -6,7 +6,7 @@ from distutils.core import setup
  
 setup(
     name            = "Cephalo",
-    version         = "0.2.2",
+    version         = "0.3",
     description     = "Cephalo is a framework for the fast prototyping of MEG data analyses.",
     keywords        = "MEG, neuroscience, data analysis, scientific computing",
     license         = "GPL3",
