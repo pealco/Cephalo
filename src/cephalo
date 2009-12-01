@@ -148,72 +148,6 @@ class View():
     def __init__(self, model):
         self.model = model
     
-    #def plot_mmf(self):
-    #    """Plots the MMF and difference waves."""
-    #    
-    #    for standard in self.model.config.standards:
-    #        pass
-    #    
-    #    for deviant in self.model.config.deviants:
-    #        pass
-    #    
-    #    grand_average = self.model.grand_average
-    #    
-    #    standard_4 = grand_average[0, :]  # dlif  standard
-    #    deviant_3  = grand_average[1, :]  # delif deviant
-    #    standard_3 = grand_average[2, :]  # delif standard
-    #    deviant_4  = grand_average[3, :]  # dlif  deviant
-    #    standard_2 = grand_average[4, :]  # ldif  standard
-    #    deviant_1  = grand_average[5, :]  # ledif deviant
-    #    standard_1 = grand_average[6, :]  # ledif standard
-    #    deviant_2  = grand_average[7, :]  # ldif  deviant
-    #    
-    #    
-    #    difference_wave_1 = difference_wave(standard_1, deviant_1) # ledif
-    #    difference_wave_2 = difference_wave(standard_2, deviant_2) # ldif 
-    #    difference_wave_3 = difference_wave(standard_3, deviant_3) # delif
-    #    difference_wave_4 = difference_wave(standard_4, deviant_4) # dlif
-    #    
-    #    figure()
-    #    
-    #    subplot(211)
-    #    title("ledif")
-    #    plot(standard_1, label="standard")
-    #    plot(deviant_1, label="deviant")
-    #    #xlim(300, 400)
-    #    #ylim(0, 70)
-    #    legend()
-    #    
-    #    subplot(212)
-    #    title("ldif")
-    #    plot(standard_2, label="standard")
-    #    plot(deviant_2, label="deviant")
-    #    #xlim(300, 400)
-    #    #ylim(0, 70)
-    #    legend()
-    #    
-    #    figure()
-    #    
-    #    subplot(211)
-    #    title("delif")
-    #    plot(standard_3, label="standard")
-    #    plot(deviant_3, label="deviant")
-    #    #xlim(300, 400)
-    #    #ylim(0, 70)
-    #    legend()
-    #    
-    #    subplot(212)
-    #    title("dlif")
-    #    plot(standard_4, label="standard")
-    #    plot(deviant_4, label="deviant")
-    #    #xlim(300, 400)
-    #    #ylim(0, 70)
-    #    legend()
-    #    
-    #    show()
-    
-    
-    
     def data_table(self, data_sets):
         """Outputs a text table."""
         
@@ -456,18 +390,6 @@ class Data(object):
         print "Saving epochs ..."
         print "Shape:", shape(epochs)
         
-        #if "/epochs_epochs" in self.h5_file:
-        #    self.h5_file.root.epochs_epochs.remove()
-        #
-        #if "/epochs_filtered" in self.h5_file:
-        #    self.h5_file.root.epochs_filtered.remove()
-        #    
-        #if "/raw_data_epochs" in self.h5_file:
-        #    self.h5_file.root.raw_data_epochs.remove()
-        #    
-        #if "/lowpass_data_epochs" in self.h5_file:
-        #    self.h5_file.root.lowpass_data_epochs.remove()
-        
         array_name = name + "_epochs"
         if "/" + array_name not in self.h5_file:
             self.h5_file.createCArray(
@@ -518,51 +440,6 @@ class Data(object):
         for condition in range(self.config.num_of_conditions):
             self.mean_epochs[condition, :, :] = \
                 mean(epochs[condition, :, len(self.front_sensors):, :], 2)
-            
-
-#class Channel(object):
-#    def __init__(self, channel_number):
-#        self.channel_number = channel_number
-#        
-#        left      = [  1,   2,   3,   4,   5,   6,   7,   8,   9,  11, 
-#                      33,  34,  35,  36,  37,  38,  39,  40,  41,  42,  
-#                      43,  44,  45,  46,  47,  48,  49,  50,  51,  52,
-#                      58,  64,  67,  71,  73,  74,  75,  76,  77,  78,
-#                      79,  80,  82,  83,  84,  85,  87,  88,  90,  91,  
-#                     105, 106, 107, 108, 109, 110, 126, 127, 128, 129, 
-#                     130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 
-#                     140, 142, 150, 151]
-#                     
-#        right     = [ 10,  12,  13,  14,  15,  16,  17,  18,  19,  20, 
-#                      21,  22,  23,  24,  25,  26,  27,  28,  29,  30, 
-#                      31,  32,  53,  54,  55,  56,  57,  59,  60,  61,
-#                      62,  63,  65,  66,  68,  69,  70,  72,  81,  86,
-#                      89,  92,  93,  94,  95,  96,  97,  98,  99, 100, 
-#                     101, 102, 103, 104, 111, 112, 113, 114, 115, 116, 
-#                     117, 118, 119, 120, 121, 122, 123, 124, 125, 141, 
-#                     143, 144, 145, 146, 147, 148, 149, 152, 153, 154, 
-#                     155, 156]
-#        
-#        anterior  = [ ]
-#        
-#        posterior = [ ]
-#        
-#        if self.channel_number in left:
-#            self.hemisphere_x = "left"
-#        elif self.channel_number in right:
-#            self.hemisphere_x = "right"
-#        else:
-#            raise ValueError("Channel %d is not a valid channel." % \
-#                self.channel_number)
-#            
-#        if self.channel_number in anterior:
-#            self.hemisphere_y = "anterior"
-#        elif self.channel_number in posterior:
-#            self.hemisphere_y = "posterior"
-#        else:
-#            raise ValueError("Channel %d is not a valid channel." % \
-#                #self.channel_number)
-        
 
 if __name__ == "__main__":
     
