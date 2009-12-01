@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 from numpy import array, flatnonzero, arange, shape, zeros, ones
 from struct import unpack, calcsize
 import tables

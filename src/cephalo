@@ -1,12 +1,14 @@
+#!/usr/bin/python
+
 import sys
 import yaml
 import tables
-from lib import filters
+from cephalo_tools import filters
 from numpy import zeros, mean, array, random, shape, size, nan, ma, isnan
-from lib.megprocess import baseline, find_triggers
-from lib.epoch_rejection import reject_by_std_method, reject_by_diff_method, \
-    reject_by_entropy
-from lib.utility import get_hemisphere, save_table
+from cephalo_tools.megprocess import baseline, find_triggers
+from cephalo_tools.epoch_rejection import reject_by_std_method, \
+    reject_by_diff_method, reject_by_entropy
+from cephalo_tools.utility import get_hemisphere, save_table
 
 class Configuration():
     def __init__(self):
