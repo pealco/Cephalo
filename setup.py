@@ -2,13 +2,11 @@
 # -*- coding: utf-8 -*-
 
 from distutils.core import setup
-from setuptools import setup
-from cephalo import __version__
-
+#from setuptools import setup
  
 setup(
     name            = "Cephalo",
-    version         = __version__,
+    version         = "0.2.2",
     description     = "Cephalo is a framework for the fast prototyping of MEG data analyses.",
     keywords        = "MEG, neuroscience, data analysis, scientific computing",
     license         = "GPL3",
@@ -23,12 +21,10 @@ setup(
                 'Natural Language :: English',
                 'Operating System :: POSIX',
                 'Programming Language :: Python'
-    ]
-    packages        = ["sqd2h5", "cephalo"]
-    scripts         = ["sqd2h5", "cephalo"]
-    
-    packages        = find_packages(exclude=['examples', 'docs']),
-    include_package_data=True,
-    install_requires=['numpy','tables']
+    ],
+    scripts         = ["src/sqd2h5", "src/cephalo"],
+    packages        = ["cephalo_tools"],
+    package_dir = {'cephalo_tools':'src/cephalo_tools'},
+    install_requires=['pyyaml']
     #test_suite='pybrain.tests.runtests.make_test_suite',
 )
