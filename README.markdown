@@ -5,7 +5,7 @@ Tools
 -----
 
 * `sqd2h5`: converts MEG160 .sqd files to HDF5 .h5 files.
-* `cephalo`: process MEG data
+* `cephalo`: processes MEG data
 
 Requirements
 ------------
@@ -20,3 +20,13 @@ Install
     
     cd cephalo
     sudo python setup.py install
+    
+License
+-------
+
+This software is distributed under the terms of the GNU General Public License. See the COPYING file for more information.
+
+Website
+-------
+
+http://pealco.net/cephalo
