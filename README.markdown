@@ -14,6 +14,8 @@ Tools
 Requirements
 ------------
 
+In order to run, Cephalo requires the `numpy`, `scipy`, and PyTables libraries. These are all included in the Enthought Python Distribution (EPD), which is free for academic use. The EPD comes as a single installer which makes the installation of these libraries very simple. Cephalo also requires the PyYAML library in order to parse the configuration file.
+
 * Enthought Python Distribution v5.1.1 or greater
     * `http://www.enthought.com/products/edudownload.php`
 * PyYAML 3.0 or greater
@@ -21,9 +23,11 @@ Requirements
     
 Install
 -------
+
+Cephalo is installed in the usual way that Python packages are installed.
     
-    cd cephalo
-    sudo python setup.py install
+    > cd cephalo
+    > sudo python setup.py install
     
 License
 -------
