@@ -336,8 +336,8 @@ class Data(object):
     
     def epoch(self, data_array, apply_baseline=True):
         """Pulls out the epochs from the long data file."""
-        self.front_sensors = [0, 41, 42, 83, 84, 107, 106, 105, 
-                                104, 103, 102, 101, 100, 62, 61, 24, 23]
+        self.front_sensors = [  0,  41,  42,  83,  84, 107, 106, 105, 
+                              104, 103, 102, 101, 100,  62,  61,  24, 23]
         self.loaded_channels = self.front_sensors + self.channels_of_interest
         
         channels = self.loaded_channels
