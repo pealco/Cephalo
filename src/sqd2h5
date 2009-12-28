@@ -290,7 +290,7 @@ if __name__ == "__main__":
             name='raw_data', 
             atom=tables.Int16Atom(), 
             shape=array_shape, 
-            filters=tables.Filters(1))
+            filters=tables.Filters(2))
 
 
         h5f.createCArray(
