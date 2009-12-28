@@ -12,11 +12,15 @@ from cephalo_tools.utility import get_hemisphere, save_table
 
 class Configuration():
     def __init__(self):
+        
+        self.settings = {}
+        self.config = None
+        
         self.get_config()
     
     def get_config(self):
-        """Gets the the configuration file. Asks for one if one is not specified
-        at the command line."""
+        """Gets the the configuration file."""
+        
         try:
             config_file = sys.argv[1]
         except IndexError:
@@ -24,80 +28,50 @@ class Configuration():
                 "No configuration file specified. Specify one now: ")
         
         self.parse_config(config_file)
-        
     
+    def set_default_attribute(self, setting, default, warn=None):
+        
+        if setting in self.config:
+            self.settings[setting] = self.config[setting]
+        else:
+            self.settings[setting] = default
+        
+        if warn: print warn
+        
     def parse_config(self, config_file):
         """Parses the configuration file. Makes many class attributes."""
         stream = open(config_file, 'r')
-        config = yaml.load(stream)
-    
-        # Set default experiment name.
-        if 'name' in config:
-            self.name = config['name']
-        else:
-            self.name = "Untitled MEG experiment"
-    
-        # Set default experimenter name
-        if 'experimenter' in config:    
-            self.experimenter = config['experimenter']
-        else:
-            self.experimenter = "Anonymous Experimenter"
-    
-        # Set default data directory.
-        if 'data_directory' in config:
-            self.data_directory = config['data_directory']
-        else:
-            self.data_directory = "."
-            
-        if 'output_directory' in config:
-            self.output_directory = config['output_directory']
-        else:
-            self.output_directory = "output/"
-    
-        # Set epochs
-        if 'epoch_pre' not in config:
-            self.epoch_pre = 100
-            print "epoch_pre unspecified. Setting to 100."
-        else:
-            self.epoch_pre = config['epoch_pre']
-    
-        if 'epoch_post' not in config:
-            self.epoch_post = 500
-            print "epoch_post unspecified. Setting to 500."
-        else:
-            self.epoch_post = config['epoch_post']
-    
-        if 'expected_epochs' not in config:
-            self.expected_epochs = 100
-            print "expected_epochs unspecified. Setting to 100."
-        else:
-            self.expected_epochs = config['expected_epochs']
+        self.config = yaml.load(stream)
+        
+        defaults = {
+            'name'               : "Untitled MEG Experiment", # Name of experiment
+            'experimenter'       : "Anonymous Experimenter",  # Name(s) of experimenters
+            'data_directory'     : './',                      # Dir where data is located
+            'output_directory'   : './output/',               # Dir where output should be placed
+            'epoch_pre'          : 100, # ms                  # 
+            'epoch_post'         : 500, # ms                  # 
+            'expected_epochs'    : 100, # number              # 
+            'sampling_frequency' : 1000, # Hz                 # 
+            'lowpass_frequency'  : 20 # Hz                    # 
+        }
+        
+        for k, v in defaults.iteritems():
+            self.set_default_attribute(k, v)
     
         # Load condition lists.
         
-        if 'conditions' not in config:
+        if 'conditions' not in self.config:
             raise ValueError("No conditions are specified.")
         
-        self.conditions = config['conditions']
+        self.conditions = self.config['conditions']
         self.trigger_channels = sorted(self.conditions.keys())
         self.num_of_conditions = len(self.trigger_channels)
     
-        if 'subjects' not in config or config['subjects'] == {}:
+        if 'subjects' not in self.config or self.config['subjects'] == {}:
             raise ValueError("No subjects specified.")
         else:
-            self.subjects = config['subjects']
+            self.subjects = self.config['subjects']
             
-        if 'sampling_frequency' in config:
-            self.sampling_frequency = config['sampling_frequency']
-        else:
-            self.sampling_frequency = 1000
-            print "No sampling frequency specified. Setting to 1000Hz."
-            
-        if 'lowpass_frequency' in config:
-            self.lowpass_frequency = config['lowpass_frequency']
-        else:
-            self.lowpass_frequency = 20
-            print "No lowpass frequency specified. Setting to 20Hz."
             
 
 class Model():
@@ -155,7 +129,7 @@ class View():
                         out += "%s c%d %d ch%d %f %s\n" % (
                                 data.subject, 
                                 condition+1, 
-                                sample-self.model.config.epoch_pre, 
+                                sample-self.model.config.settings["epoch_pre"], 
                                 true_channel, 
                                 data.mean_epochs[condition, sample, channel],
                                 get_hemisphere(true_channel, axis='x'),
@@ -184,21 +158,41 @@ class View():
                 else:
                     hemisphere_y = "anterior"
                 
+                subject   = row['subject']
+                condition = row['condition']
+                sample    = row['sample']
+                channel   = row['channel']
+                amplitude = row['amplitude']
+                factors   = ' '.join(self.model.config.conditions[self.model.config.trigger_channels[row['condition']-1]])
+                
                 out += "%s c%d %d ch%d %s %s %s %f\n" % \
-                    (row['subject'], 
-                    row['condition'], 
-                    row['sample'], 
-                    row['channel'], 
+                    (subject, 
+                    condition, 
+                    sample, 
+                    channel, 
                     hemisphere_x, 
                     hemisphere_y,  
                     ' '.join(self.model.config.conditions[self.model.config.trigger_channels[row['condition']-1]]),
-                    row['amplitude'])
+                    amplitude)
         return out
-                
-    
+
     def to_table(self, data_sets):
         """Creates a pytables Table."""
         
+        Sample = {
+            "subject"      : tables.StringCol(itemsize=16),
+            "condition"    : tables.UInt8Col(),
+            "sample"       : tables.Int16Col(),
+            "channel"      : tables.UInt8Col(),
+            "amplitude"    : tables.Float32Col(),
+            "hemisphere_x" : tables.BoolCol(), # Left is True, Right is False
+            "hemisphere_y" : tables.BoolCol()  # Anterior is True, Posterior is False 
+        }
+        
+        for factor in range(len(self.model.config.conditions.values()[0])):
+            factor = "factor" + str(factor) # => "factor0"
+            Sample[factor] = tables.StringCol(itemsize=16)
+            
         for data in data_sets:
             if "/epochsTable" in data.h5_file:
                 data.h5_file.root.epochsTable.remove()
@@ -218,31 +212,19 @@ class View():
             for condition in xrange(conditions):
                 for sample in xrange(samples):
                     for channel in xrange(channels):
-                        sample_row['subject'] = data.subject
-                        sample_row['condition'] = condition+1
-                        sample_row['sample'] = \
-                            sample-self.model.config.epoch_pre
-                        sample_row['channel'] = \
-                            data.channels_of_interest[channel]
-                        sample_row['hemisphere_x'] = \
-                            get_hemisphere(channel, axis='x', boolean=True)
-                        sample_row['hemisphere_y'] = \
-                            get_hemisphere(channel, axis='y', boolean=True)
-                        sample_row['amplitude'] = \
-                            data.mean_epochs[condition, sample, channel]
+                        sample_row['subject']      = data.subject
+                        sample_row['condition']    = condition+1
+                        sample_row['sample']       = sample-self.model.config.settings["epoch_pre"]
+                        sample_row['channel']      = data.channels_of_interest[channel]
+                        sample_row['hemisphere_x'] = get_hemisphere(channel, axis='x', boolean=True)
+                        sample_row['hemisphere_y'] = get_hemisphere(channel, axis='y', boolean=True)
+                        sample_row['amplitude']    = data.mean_epochs[condition, sample, channel]
                         sample_row.append()
             
             table.flush()
                                 
         
-class Sample(tables.IsDescription):
-    subject   = tables.StringCol(16)
-    condition = tables.UInt8Col()
-    sample    = tables.Int16Col()
-    channel   = tables.UInt8Col()
-    amplitude = tables.Float32Col()
-    hemisphere_x = tables.BoolCol() # Left is True, Right is False
-    hemisphere_y = tables.BoolCol() # Anterior is True, Posterior is False
+
 
 
 class Experiment():
@@ -258,14 +240,12 @@ class Experiment():
         self.view = View(self.model)
         self.view.to_table(self.model.data)
         
-        output_filename = self.config.output_directory + '/' + \
-            self.config.name + ".output.txt"
+        output_filename = self.config.settings["output_directory"] + '/' + \
+            self.config.settings["name"] + ".output.txt"
         #data_table = self.view.data_table(self.model.data)
         data_table = self.view.print_table(self.model.data)
         
         save_table(output_filename, data_table)
-        
-        
         
         #self.view.plot_mmf()
         
@@ -286,7 +266,7 @@ class Data(object):
         """Loads an H5 data file containing MEG data."""
         
         print "Loading data ..."
-        self.h5_filename = self.config.data_directory + self.subject + ".h5"
+        self.h5_filename = self.config.settings["data_directory"] + self.subject + ".h5"
         self.h5_file = tables.openFile(self.h5_filename, mode = "r+")
         
     
@@ -330,8 +310,8 @@ class Data(object):
                 self.h5_file.root.lowpass_data[channel] = \
                     filters.lowpass(self.h5_file.root.raw_data[channel] * \
                     self.h5_file.root.convfactor[channel], 
-                    sampling_frequency=self.config.sampling_frequency, 
-                    lowpass_frequency=self.config.lowpass_frequency) 
+                    sampling_frequency=self.config.settings["sampling_frequency"], 
+                    lowpass_frequency=self.config.settings["lowpass_frequency"]) 
     
     
     def epoch(self, data_array, apply_baseline=True):
@@ -342,12 +322,12 @@ class Data(object):
         
         channels = self.loaded_channels
         conditions = self.config.num_of_conditions
-        expected_epochs = self.config.expected_epochs
-        stimulus_pre = self.config.epoch_pre
-        stimulus_post = self.config.epoch_post
+        expected_epochs = self.config.settings["expected_epochs"]
+        stimulus_pre = self.config.settings["epoch_pre"]
+        stimulus_post = self.config.settings["epoch_post"]
         triggers = self.h5_file.root.triggers
         
-        self.epoch_length  = stimulus_pre + 1 + stimulus_post # Include 0 point.
+        self.epoch_length = stimulus_pre + 1 + stimulus_post # Include 0 point.
         
         epochs = zeros((conditions, self.epoch_length, len(channels), \
             expected_epochs))
@@ -379,7 +359,7 @@ class Data(object):
         #        epochs[condition, :, :, t] = the_epoch
         
         if apply_baseline:
-            epochs = baseline(epochs.copy(), self.config.epoch_pre)
+            epochs = baseline(epochs.copy(), self.config.settings["epoch_pre"])
             
         self.save_epochs(epochs, data_array)
         
