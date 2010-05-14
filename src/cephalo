@@ -10,13 +10,19 @@ from cephalo_tools.epoch_rejection import reject_by_std_method, \
     reject_by_diff_method, reject_by_entropy
 from cephalo_tools.utility import get_hemisphere, save_table
 
-class Configuration():
+class Configuration(object):
+    """A class to hold user settings."""
+    
     def __init__(self):
         
         self.settings = {}
         self.config = None
         
         self.get_config()
+        #self.save_config()
+        
+    def save_config():
+        pass
     
     def get_config(self):
         """Gets the the configuration file."""
@@ -29,7 +35,8 @@ class Configuration():
         
         self.parse_config(config_file)
     
-    def set_default_attribute(self, setting, default, warn=None):
+    def apply_setting(self, setting, default, warn=None):
+        """Applies the setting specified in the configuration or a default setting if none is specified."""
         
         if setting in self.config:
             self.settings[setting] = self.config[setting]
@@ -48,15 +55,15 @@ class Configuration():
             'experimenter'       : "Anonymous Experimenter",  # Name(s) of experimenters
             'data_directory'     : './',                      # Dir where data is located
             'output_directory'   : './output/',               # Dir where output should be placed
-            'epoch_pre'          : 100, # ms                  # 
-            'epoch_post'         : 500, # ms                  # 
-            'expected_epochs'    : 100, # number              # 
-            'sampling_frequency' : 1000, # Hz                 # 
-            'lowpass_frequency'  : 20 # Hz                    # 
+            'epoch_pre'          : 100, # ms                  # Pre-stimulus amount, samples
+            'epoch_post'         : 500, # ms                  # Post-stimulus amount, samples
+            'expected_epochs'    : 100, # number              # Number of epochs expected
+            'sampling_frequency' : 1000, # Hz                 # Frequency at which data was sampled
+            'lowpass_frequency'  : 20 # Hz                    # Lowpass frequency
         }
         
         for k, v in defaults.iteritems():
-            self.set_default_attribute(k, v)
+            self.apply_setting(k, v)
     
         # Load condition lists.
         
@@ -74,14 +81,14 @@ class Configuration():
             
             
 
-class Model():
+class Pipeline(object):
     """Controls the flow of data."""
     
     def __init__(self, config):
         self.config = config
     
-    def process(self, subject):
-        """Implements the various steps of the processing chain."""
+    def __process(self, subject):
+        """Implements the various steps of the analysis pipeline."""
         
         print "Working on", subject, "..."
         data = Data(subject, self.config)
@@ -94,7 +101,7 @@ class Model():
         data.epoch("lowpass_data")
         
         # Automatic epoch rejection
-        data.reject_epochs(method="diff")
+        #data.reject_epochs(method="diff")
         
         # Compute mean epochs
         data.mean_epochs()
@@ -103,147 +110,28 @@ class Model():
         
         return data
         
-    def analyze(self):
+    def run(self):
         """Loops through subjects to process them."""
-        self.data = [self.process(subject) for subject in self.config.subjects]
-
-class View():
-    """Controls data output."""
-    
-    def __init__(self, model):
-        self.model = model
-    
-    def data_table(self, data_sets):
-        """Outputs a text table."""
-        
-        print "Outputting table ..."
-        out = "subject condition sample channel value hemisphere_x\n"
-        for data in data_sets:
-            data.mean_epochs = array(data.mean_epochs)
-            conditions, samples, channels = shape(data.mean_epochs)
-        
-            for condition in xrange(conditions):
-                for sample in xrange(samples):
-                    for channel in xrange(channels):
-                        true_channel = data.channels_of_interest[channel]
-                        out += "%s c%d %d ch%d %f %s\n" % (
-                                data.subject, 
-                                condition+1, 
-                                sample-self.model.config.settings["epoch_pre"], 
-                                true_channel, 
-                                data.mean_epochs[condition, sample, channel],
-                                get_hemisphere(true_channel, axis='x'),
-                                )
-                        
-            return out
-    
-    def print_table(self, data_sets):
-        """Writes a table to disk."""
-        
-        number_of_factors = len(self.model.config.conditions.items()[0][1])
-        out = "subject condition sample channel hemisphere_x hemisphere_y "
-        out += ' '.join(["factor" + str(f) for f in range(number_of_factors)])
-        out += " amplitude\n"
-            
-        for data in data_sets:
-            table = data.h5_file.root.epochsTable.iterrows()
-            for row in table:
-                if row['hemisphere_x']:
-                    hemisphere_x = "right"
-                else:
-                    hemisphere_x = "left"
-                    
-                if row['hemisphere_y']:
-                    hemisphere_y = "posterior"
-                else:
-                    hemisphere_y = "anterior"
-                
-                subject   = row['subject']
-                condition = row['condition']
-                sample    = row['sample']
-                channel   = row['channel']
-                amplitude = row['amplitude']
-                factors   = ' '.join(self.model.config.conditions[self.model.config.trigger_channels[row['condition']-1]])
-                
-                out += "%s c%d %d ch%d %s %s %s %f\n" % \
-                    (subject, 
-                    condition, 
-                    sample, 
-                    channel, 
-                    hemisphere_x, 
-                    hemisphere_y,  
-                    ' '.join(self.model.config.conditions[self.model.config.trigger_channels[row['condition']-1]]),
-                    amplitude)
-        return out
-
-    def to_table(self, data_sets):
-        """Creates a pytables Table."""
-        
-        Sample = {
-            "subject"      : tables.StringCol(itemsize=16),
-            "condition"    : tables.UInt8Col(),
-            "sample"       : tables.Int16Col(),
-            "channel"      : tables.UInt8Col(),
-            "amplitude"    : tables.Float32Col(),
-            "hemisphere_x" : tables.BoolCol(), # Left is True, Right is False
-            "hemisphere_y" : tables.BoolCol()  # Anterior is True, Posterior is False 
-        }
-        
-        for factor in range(len(self.model.config.conditions.values()[0])):
-            factor = "factor" + str(factor) # => "factor0"
-            Sample[factor] = tables.StringCol(itemsize=16)
-            
-        for data in data_sets:
-            if "/epochsTable" in data.h5_file:
-                data.h5_file.root.epochsTable.remove()
-            
-            table = data.h5_file.createTable(
-                        where='/',
-                        name='epochsTable',
-                        description=Sample,
-                        expectedrows=size(data.mean_epochs),
-                        filters=tables.Filters(2)
-                        )
-                        
-            data.mean_epochs = array(data.mean_epochs)
-            conditions, samples, channels = shape(data.mean_epochs)
-        
-            sample_row = table.row
-            for condition in xrange(conditions):
-                for sample in xrange(samples):
-                    for channel in xrange(channels):
-                        sample_row['subject']      = data.subject
-                        sample_row['condition']    = condition+1
-                        sample_row['sample']       = sample-self.model.config.settings["epoch_pre"]
-                        sample_row['channel']      = data.channels_of_interest[channel]
-                        sample_row['hemisphere_x'] = get_hemisphere(channel, axis='x', boolean=True)
-                        sample_row['hemisphere_y'] = get_hemisphere(channel, axis='y', boolean=True)
-                        sample_row['amplitude']    = data.mean_epochs[condition, sample, channel]
-                        sample_row.append()
-            
-            table.flush()
-                                
-        
+        self.data = [self.__process(subject) for subject in self.config.subjects]
 
 
 
-class Experiment():
+class Experiment(object):
     def __init__(self):
         
-        # Models
+        # Pipelines
         self.config = Configuration()
-        self.model = Model(self.config)
-        
-        self.model.analyze()
+        self.pipeline = Pipeline(self.config)
+        self.pipeline.run()
         
         # Views
-        self.view = View(self.model)
-        self.view.to_table(self.model.data)
+        self.view = View(self.pipeline)
+        self.view.to_table(self.pipeline.data)
         
         output_filename = self.config.settings["output_directory"] + '/' + \
             self.config.settings["name"] + ".output.txt"
-        #data_table = self.view.data_table(self.model.data)
-        data_table = self.view.print_table(self.model.data)
+        #data_table = self.view.data_table(self.pipeline.data)
+        data_table = self.view.print_table(self.pipeline.data)
         
         save_table(output_filename, data_table)
         
@@ -316,8 +204,7 @@ class Data(object):
     
     def epoch(self, data_array, apply_baseline=True):
         """Pulls out the epochs from the long data file."""
-        self.front_sensors = [  0,  41,  42,  83,  84, 107, 106, 105, 
-                              104, 103, 102, 101, 100,  62,  61,  24, 23]
+        self.front_sensors = []
         self.loaded_channels = self.front_sensors + self.channels_of_interest
         
         channels = self.loaded_channels
@@ -423,7 +310,129 @@ class Data(object):
             self.mean_epochs[condition, :, :] = \
                 mean(epochs[condition, :, len(self.front_sensors):, :], 2)
 
+
+class View():
+    """Controls data output."""
+
+    def __init__(self, pipeline):
+        self.pipeline = pipeline
+
+    def data_table(self, data_sets):
+        """Outputs a text table."""
+
+        print "Outputting table ..."
+        out = "subject condition sample channel value hemisphere_x\n"
+        for data in data_sets:
+            data.mean_epochs = array(data.mean_epochs)
+            conditions, samples, channels = shape(data.mean_epochs)
+
+            for condition in xrange(conditions):
+                for sample in xrange(samples):
+                    for channel in xrange(channels):
+                        true_channel = data.channels_of_interest[channel]
+                        out += "%s c%d %d ch%d %f %s\n" % (
+                                data.subject, 
+                                condition+1, 
+                                sample-self.pipeline.config.settings["epoch_pre"], 
+                                true_channel, 
+                                data.mean_epochs[condition, sample, channel],
+                                get_hemisphere(true_channel, axis='x'),
+                                )
+
+            return out
+
+    def print_table(self, data_sets):
+        """Writes a table to disk."""
+
+        number_of_factors = len(self.pipeline.config.conditions.items()[0][1])
+        out = "subject condition sample channel hemisphere_x hemisphere_y "
+        out += ' '.join(["factor" + str(f) for f in range(number_of_factors)])
+        out += " amplitude\n"
+
+        for data in data_sets:
+            table = data.h5_file.root.epochsTable.iterrows()
+            for row in table:
+                if row['hemisphere_x']:
+                    hemisphere_x = "right"
+                else:
+                    hemisphere_x = "left"
+
+                if row['hemisphere_y']:
+                    hemisphere_y = "posterior"
+                else:
+                    hemisphere_y = "anterior"
+
+                subject   = row['subject']
+                condition = row['condition']
+                sample    = row['sample']
+                channel   = row['channel']
+                amplitude = row['amplitude']
+                factors   = ' '.join(self.pipeline.config.conditions[self.pipeline.config.trigger_channels[row['condition']-1]])
+
+                out += "%s c%d %d ch%d %s %s %s %f\n" % \
+                    (subject, 
+                    condition, 
+                    sample, 
+                    channel, 
+                    hemisphere_x, 
+                    hemisphere_y,  
+                    ' '.join(self.pipeline.config.conditions[self.pipeline.config.trigger_channels[row['condition']-1]]),
+                    amplitude)
+        return out
+
+    def to_table(self, data_sets):
+        """Creates a pytables Table."""
+
+        Sample = {
+            "subject"      : tables.StringCol(itemsize=16),
+            "condition"    : tables.UInt8Col(),
+            "sample"       : tables.Int16Col(),
+            "channel"      : tables.UInt8Col(),
+            "amplitude"    : tables.Float32Col(),
+            "hemisphere_x" : tables.BoolCol(), # Left is True, Right is False
+            "hemisphere_y" : tables.BoolCol()  # Anterior is True, Posterior is False 
+        }
+
+        for factor in range(len(self.pipeline.config.conditions.values()[0])):
+            factor = "factor" + str(factor) # => "factor0"
+            Sample[factor] = tables.StringCol(itemsize=16)
+
+        for data in data_sets:
+            if "/epochsTable" in data.h5_file:
+                data.h5_file.root.epochsTable.remove()
+
+            table = data.h5_file.createTable(
+                        where='/',
+                        name='epochsTable',
+                        description=Sample,
+                        expectedrows=size(data.mean_epochs),
+                        filters=tables.Filters(2)
+                        )
+
+            data.mean_epochs = array(data.mean_epochs)
+            conditions, samples, channels = shape(data.mean_epochs)
+
+            sample_row = table.row
+            for condition in xrange(conditions):
+                for sample in xrange(samples):
+                    for channel in xrange(channels):
+                        sample_row['subject']      = data.subject
+                        sample_row['condition']    = condition+1
+                        sample_row['sample']       = sample-self.pipeline.config.settings["epoch_pre"]
+                        sample_row['channel']      = data.channels_of_interest[channel]
+                        sample_row['hemisphere_x'] = get_hemisphere(channel, axis='x', boolean=True)
+                        sample_row['hemisphere_y'] = get_hemisphere(channel, axis='y', boolean=True)
+                        sample_row['amplitude']    = data.mean_epochs[condition, sample, channel]
+                        sample_row.append()
+
+            table.flush()
+
+
+
+
+
 if __name__ == "__main__":
     
     Experiment()
+
 
