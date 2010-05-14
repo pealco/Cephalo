@@ -81,14 +81,16 @@ def get_hemisphere(channel, axis, boolean=False):
         elif channel in right:
             hemisphere = "right"
         else:
-            raise ValueError("Channel %d is not a valid channel." % channel) 
+            hemisphere = "NA"
+            #raise ValueError("Channel %d is not a valid channel." % channel) 
     elif axis == "y":
         if channel in anterior:
             hemisphere = "anterior"
         elif channel in posterior:
             hemisphere = "posterior"
         else:
-            raise ValueError("Channel %d is not a valid channel." % channel)
+            hemisphere = "NA"
+            #raise ValueError("Channel %d is not a valid channel." % channel)
             
     if boolean:
         if hemisphere == "left" or hemisphere == "anterior":
@@ -99,4 +101,3 @@ def get_hemisphere(channel, axis, boolean=False):
         return hemisphere
                 
             
-    
