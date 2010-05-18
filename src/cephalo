@@ -171,7 +171,8 @@ class Data(object):
                        )
                        
         print "Finding triggers ..."
-        raw_data = self.h5_file.root.raw_data
+        raw_data = self.h5_file.root.raw_data[160:192, :].T * self.h5_file.root.convfactor[160:192]
+                
         trigger_channels = self.config.trigger_channels
         for trigger_set in find_triggers(raw_data, trigger_channels):
             self.triggers.append(trigger_set)

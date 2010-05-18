@@ -1,16 +1,16 @@
 """Some utility functions specific to MEG data."""
 
-from numpy import mean, nonzero, diff, arange, shape, array, amax, amin, size
+from numpy import mean, nonzero, diff, arange, shape, array, amax, amin, size, hstack
 from pylab import plot, figure, find
 from utility import rms
 #from pylab import *
 #from peak_finding import *
 
-def find_triggers(data, triggerLinesPotential=None, triggerHighThresh=None, triggerLowThresh=None):
+def find_triggers(triggerData, triggerLinesPotential=None, triggerHighThresh=None, triggerLowThresh=None):
     """Locates triggers in the trigger channels. Returns a list of arrays."""
     
-    if not triggerLinesPotential:
-        triggerLinesPotential = arange(160, 192)
+    #if not triggerLinesPotential:
+    triggerLinesPotential = arange(160, 192)
         
     if not triggerHighThresh:
         triggerHighThresh = 5 # mV
@@ -20,13 +20,12 @@ def find_triggers(data, triggerLinesPotential=None, triggerHighThresh=None, trig
         
     triggerHighThresh_mV = triggerHighThresh * 1000 # mV
     triggerLowThresh_mV  = triggerLowThresh  * 1000 # mV
-    
-    triggerData = f.root.raw_data[160:192, :].T * f.root.convfactor[160:192]
-    
+        
     # First find channels whose maximum is at least the "high" threshold and
     # whose minimum is at most the "low" threshold.
     
     triggerLinesTest = ((amax(triggerData, 0) > triggerHighThresh_mV) & (amin(triggerData, 0) < triggerLowThresh_mV))
+    print triggerLinesTest
     triggerDataProbable = triggerData[:,triggerLinesTest]
     triggerLinesProbable = triggerLinesPotential[triggerLinesTest]
     #del triggerData
@@ -58,11 +57,12 @@ def find_triggers(data, triggerLinesPotential=None, triggerHighThresh=None, trig
     triggersList = []
     
     for iTrigger in range(triggerLinesGoodCount):
+        print iTrigger
         if triggerLinesHighRestGoodCount > triggerLinesLowRestGoodCount:
             triggerSet = find(triggerDataGood[:, iTrigger] < triggerLowThresh_mV)
         else:
             triggerSet = find(triggerDataGood[:, iTrigger] > triggerHighThresh_mV)
-
+            
         # the next line uses find and diff to discard samples of triggerSet
         # that immediately follow any other values that cross
         # the "set" threshold.
@@ -70,7 +70,7 @@ def find_triggers(data, triggerLinesPotential=None, triggerHighThresh=None, trig
         triggerSamples = (triggerSet[hstack((0, find(diff(triggerSet) > 1)+1))])
         triggersList.append(triggerSamples)
     
-    return triggerSamples
+    return triggersList
     
 
 def baseline(epochs, epochs_pre):
